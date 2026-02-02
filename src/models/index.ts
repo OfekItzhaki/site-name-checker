@@ -2,7 +2,7 @@
 export { AvailabilityStatus } from './AvailabilityStatus';
 
 // Core interfaces
-export type { IDomainResult } from './IDomainResult';
+export type { IDomainResult, IDomainPricing } from './IDomainResult';
 export type { IQueryRequest } from './IQueryRequest';
 export type { IQueryResponse } from './IQueryResponse';
 export type { IQueryError } from './IQueryError';

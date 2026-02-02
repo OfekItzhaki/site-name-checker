@@ -1,6 +1,7 @@
 import http from 'http';
 import url from 'url';
 import { DomainController } from '../controllers/DomainController';
+import { DomainPricingService } from '../services/DomainPricingService';
 import type { IQueryRequest } from '../models';
 
 /**
@@ -10,11 +11,13 @@ import type { IQueryRequest } from '../models';
 export class ApiServer {
   private server: http.Server;
   private domainController: DomainController;
+  private pricingService: DomainPricingService;
   private port: number;
 
   constructor(port: number = 3001) {
     this.port = port;
     this.domainController = new DomainController();
+    this.pricingService = new DomainPricingService();
     this.server = this.createServer();
   }
 
@@ -56,6 +59,10 @@ export class ApiServer {
         await this.handleDomainCheck(req, res);
       } else if (pathname === '/api/validate-domain' && method === 'POST') {
         await this.handleDomainValidation(req, res);
+      } else if (pathname === '/api/pricing' && method === 'GET') {
+        await this.handlePricingInfo(req, res);
+      } else if (pathname === '/api/domain-pricing' && method === 'POST') {
+        await this.handleDomainPricing(req, res);
       } else {
         this.sendError(res, 404, 'Endpoint not found');
       }
@@ -121,6 +128,45 @@ export class ApiServer {
     }
   }
 
+  private async handleDomainPricing(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    try {
+      const body = await this.parseRequestBody(req);
+      const { domain } = JSON.parse(body);
+
+      if (!domain || typeof domain !== 'string') {
+        this.sendError(res, 400, 'Invalid request: domain is required');
+        return;
+      }
+
+      const pricing = this.pricingService.getDomainPricing(domain);
+      
+      if (!pricing) {
+        this.sendError(res, 404, 'Pricing information not available for this domain');
+        return;
+      }
+
+      this.sendJson(res, 200, pricing);
+    } catch (error) {
+      console.error('Domain pricing error:', error);
+      this.sendError(res, 500, 'Failed to get domain pricing');
+    }
+  }
+
+  private async handlePricingInfo(_req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    try {
+      const allPricing = this.pricingService.getAllTLDPricing();
+      
+      this.sendJson(res, 200, {
+        supportedTLDs: allPricing,
+        lastUpdated: new Date().toISOString(),
+        disclaimer: 'Prices are estimates based on typical market rates and may vary by registrar and promotions.'
+      });
+    } catch (error) {
+      console.error('Pricing info error:', error);
+      this.sendError(res, 500, 'Failed to get pricing information');
+    }
+  }
+
   private parseRequestBody(req: http.IncomingMessage): Promise<string> {
     return new Promise((resolve, reject) => {
       let body = '';
@@ -156,6 +202,8 @@ export class ApiServer {
         console.log(`   GET  /api/health - Health check`);
         console.log(`   POST /api/check-domain - Check domain availability`);
         console.log(`   POST /api/validate-domain - Validate domain format`);
+        console.log(`   GET  /api/pricing - Get all TLD pricing information`);
+        console.log(`   POST /api/domain-pricing - Get pricing for specific domain`);
         resolve();
       });
     });

@@ -3,6 +3,7 @@ import { AvailabilityStatus } from '../models/AvailabilityStatus';
 import { InputValidator } from '../validators/InputValidator';
 import { HybridQueryService } from '../services/HybridQueryService';
 import { DomainQueryEngine } from '../services/DomainQueryEngine';
+import { DomainPricingService } from '../services/DomainPricingService';
 import { ApplicationStateManager } from '../patterns/state/ApplicationStateManager';
 import { ApplicationStateType } from '../patterns/state/IApplicationState';
 import { EventBus } from '../patterns/observer/EventBus';
@@ -20,6 +21,7 @@ export class DomainController {
   private validator: InputValidator;
   private defaultStrategy: IQueryStrategy;
   private queryEngine: DomainQueryEngine;
+  private pricingService: DomainPricingService;
   private stateManager: ApplicationStateManager;
   private eventBus: IEventBus;
   private commandInvoker: CommandInvoker;
@@ -29,6 +31,7 @@ export class DomainController {
     this.validator = new InputValidator();
     this.defaultStrategy = new HybridQueryService(); // Use HybridQueryService as default strategy
     this.queryEngine = new DomainQueryEngine();
+    this.pricingService = new DomainPricingService();
     this.stateManager = new ApplicationStateManager();
     this.eventBus = new EventBus();
     this.commandInvoker = new CommandInvoker();
@@ -183,9 +186,12 @@ export class DomainController {
       await this.stateManager.transitionTo(ApplicationStateType.COMPLETED);
       this.publishStateChange('completed', { request, results });
 
+      // Add pricing information to available domains
+      const enhancedResults = this.enhanceResultsWithPricing(results);
+
       return {
         requestId,
-        results,
+        results: enhancedResults,
         errors: [],
         completedAt: new Date(),
         totalExecutionTime: executionTime
@@ -305,9 +311,12 @@ export class DomainController {
       await this.stateManager.transitionTo(ApplicationStateType.COMPLETED);
       this.publishStateChange('completed', { request, results });
 
+      // Add pricing information to available domains
+      const enhancedResults = this.enhanceResultsWithPricing(results);
+
       return {
         requestId,
-        results,
+        results: enhancedResults,
         errors: validationErrors,
         completedAt: new Date(),
         totalExecutionTime: executionTime
@@ -518,6 +527,27 @@ export class DomainController {
     const baseDomain = this.extractBaseDomain(domain);
     const validationResult = this.validator.validateDomainName(baseDomain);
     return validationResult.isValid;
+  }
+
+  /**
+   * Enhance domain results with pricing information for available domains
+   * @param results - Array of domain results
+   * @returns Enhanced results with pricing data
+   */
+  private enhanceResultsWithPricing(results: IDomainResult[]): IDomainResult[] {
+    return results.map(result => {
+      // Only add pricing for available domains
+      if (result.status === AvailabilityStatus.AVAILABLE) {
+        const pricing = this.pricingService.getDomainPricing(result.domain);
+        if (pricing) {
+          return {
+            ...result,
+            pricing
+          };
+        }
+      }
+      return result;
+    });
   }
 
   /**

@@ -54,21 +54,33 @@ body {
 
 .input-group {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 1rem;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
 
 .input-label {
     font-weight: 600;
     color: #2c3e50;
+    white-space: nowrap;
+    min-width: fit-content;
 }
 
 .domain-input {
+    flex: 1;
     padding: 0.75rem;
     border: 2px solid #e1e8ed;
     border-radius: 4px;
     font-size: 1rem;
     transition: border-color 0.3s ease;
+    min-width: 200px;
 }
 
 .domain-input:focus {
@@ -85,6 +97,7 @@ body {
     font-size: 1rem;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    white-space: nowrap;
 }
 
 .check-button:hover:not(:disabled) {
@@ -233,28 +246,40 @@ body {
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.5px;
+    border: 2px solid transparent;
+    color: white !important;
 }
 
 .status.available {
     background-color: #27ae60;
-    color: white;
+    color: white !important;
+    border-color: #1e8449;
+    box-shadow: 0 2px 4px rgba(39, 174, 96, 0.3);
 }
 
 .status.taken {
     background-color: #e74c3c;
-    color: white;
+    color: white !important;
+    border-color: #c0392b;
+    box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
 }
 
 .status.error {
     background-color: #f39c12;
-    color: white;
+    color: white !important;
+    border-color: #d68910;
+    box-shadow: 0 2px 4px rgba(243, 156, 18, 0.3);
 }
 
 .status.checking {
     background-color: #3498db;
-    color: white;
+    color: white !important;
+    border-color: #2980b9;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
 }
 
 /* Error and success messages */
@@ -298,6 +323,105 @@ body {
 /* Utility classes */
 .hidden {
     display: none !important;
+}
+
+/* Pricing Information Styles */
+.pricing-info {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.price-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.price-renewal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.price-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.price-value {
+    font-weight: 700;
+    color: #28a745;
+    font-size: 1.1rem;
+}
+
+.price-value.premium {
+    color: #fd7e14;
+}
+
+.registrar-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.registrar-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.registrar-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.registrar-link:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.premium-badge {
+    display: inline-block;
+    background-color: #fd7e14;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+}
+
+.pricing-notes {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Enhanced result cards for pricing */
+.result-card.available .pricing-info {
+    background-color: #f8fff9;
+    border-color: #c3e6cb;
+}
+
+.result-card.available .price-value {
+    color: #155724;
+}
+
+.result-card.available .price-value.premium {
+    color: #856404;
+}
 }
 
 .loading {

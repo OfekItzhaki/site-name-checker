@@ -1,6 +1,28 @@
 import type { AvailabilityStatus } from './AvailabilityStatus';
 
 /**
+ * Domain pricing information
+ */
+export interface IDomainPricing {
+  /** Domain name */
+  domain: string;
+  /** TLD extension */
+  tld: string;
+  /** First year registration price in USD */
+  firstYearPrice: number;
+  /** Annual renewal price in USD */
+  renewalPrice: number;
+  /** Recommended registrar */
+  registrar: string;
+  /** Registrar website URL */
+  registrarUrl: string;
+  /** Whether this is a premium domain */
+  isPremium: boolean;
+  /** Additional notes about pricing */
+  notes?: string;
+}
+
+/**
  * Interface representing the result of a domain availability check
  */
 export interface IDomainResult {
@@ -32,4 +54,6 @@ export interface IDomainResult {
     nameServers?: string[];
     status?: string[];
   };
+  /** Pricing information (only for available domains) */
+  pricing?: IDomainPricing;
 }

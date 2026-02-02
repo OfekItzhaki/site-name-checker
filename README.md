@@ -5,6 +5,7 @@ A real-time domain availability checking application with a hybrid architecture 
 ## Features
 
 - **Real-time Domain Checking**: Check domain availability across multiple TLDs (.com, .net, .org, .ai, .dev, .io, .co)
+- **Domain Pricing Information**: Get estimated registration and renewal costs for available domains
 - **Hybrid Query Strategy**: Combines DNS lookups for speed with WHOIS queries for accuracy
 - **Concurrent Processing**: Parallel checking of multiple TLDs for optimal performance
 - **Enterprise Design Patterns**: Implements Command, Observer, Factory, Strategy, and State patterns
@@ -90,6 +91,22 @@ Content-Type: application/json
   "tlds": [".com", ".net", ".org", ".ai", ".dev", ".io", ".co"]
 }
 ```
+
+### Domain Pricing Information
+```
+GET /api/pricing
+```
+Returns pricing information for all supported TLDs.
+
+```
+POST /api/domain-pricing
+Content-Type: application/json
+
+{
+  "domain": "example.com"
+}
+```
+Returns pricing information for a specific domain.
 
 ## Development
 
@@ -182,6 +199,14 @@ npm run test:coverage
 curl -X POST http://localhost:3001/api/check-domain \
   -H "Content-Type: application/json" \
   -d '{"baseDomain": "example", "tlds": [".com", ".net", ".org"]}'
+
+# Get pricing information for all TLDs
+curl http://localhost:3001/api/pricing
+
+# Get pricing for a specific domain
+curl -X POST http://localhost:3001/api/domain-pricing \
+  -H "Content-Type: application/json" \
+  -d '{"domain": "example.com"}'
 ```
 
 ## Contributing

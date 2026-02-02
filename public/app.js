@@ -254,6 +254,30 @@ class DomainCheckerClient {
     const statusText = this.getStatusText(result.status);
     const statusClass = result.status;
     
+    // Build pricing information HTML
+    let pricingHtml = '';
+    if (result.status === 'available' && result.pricing) {
+      const pricing = result.pricing;
+      pricingHtml = `
+        <div class="pricing-info">
+          <div class="price-main">
+            <span class="price-label">First Year:</span>
+            <span class="price-value ${pricing.isPremium ? 'premium' : ''}">$${pricing.firstYearPrice}</span>
+          </div>
+          <div class="price-renewal">
+            <span class="price-label">Renewal:</span>
+            <span class="price-value">$${pricing.renewalPrice}/year</span>
+          </div>
+          <div class="registrar-info">
+            <span class="registrar-label">Best Price:</span>
+            <a href="${pricing.registrarUrl}" target="_blank" class="registrar-link">${pricing.registrar}</a>
+          </div>
+          ${pricing.isPremium ? '<div class="premium-badge">Premium TLD</div>' : ''}
+          ${pricing.notes ? `<div class="pricing-notes">${pricing.notes}</div>` : ''}
+        </div>
+      `;
+    }
+    
     resultCard.innerHTML = `
       <div class="domain-name">${result.domain}</div>
       <div class="status ${statusClass}">
@@ -264,6 +288,7 @@ class DomainCheckerClient {
         <span class="method">${result.checkMethod || 'API'}</span>
         <span class="time">${result.executionTime || 0}ms</span>
       </div>
+      ${pricingHtml}
       ${result.error ? `<div class="error-details">${result.error}</div>` : ''}
     `;
     
