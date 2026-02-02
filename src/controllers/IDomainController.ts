@@ -137,8 +137,12 @@ export interface IValidationResult {
   isValid: boolean;
   /** Sanitized domain name (normalized) */
   sanitizedDomain: string;
+  /** Sanitized input (alias for compatibility) */
+  sanitizedInput: string;
   /** Array of validation errors */
-  errors: string[];
+  errors: IValidationError[];
+  /** Primary error message */
+  errorMessage?: string;
   /** Validation warnings (non-blocking) */
   warnings?: string[];
   /** Suggested corrections */
@@ -149,12 +153,10 @@ export interface IValidationResult {
  * Individual validation error
  */
 export interface IValidationError {
-  /** Error code for programmatic handling */
+  /** Error code */
   code: string;
-  /** Human-readable error message */
+  /** Error message */
   message: string;
-  /** Field or domain that caused the error */
-  field: string;
-  /** Suggested fix for the error */
-  suggestion?: string;
+  /** Field that caused the error */
+  field?: string;
 }

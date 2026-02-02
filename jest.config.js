@@ -1,6 +1,6 @@
 module.exports = {
   preset: 'ts-jest',
-  testEnvironment: 'node',
+  testEnvironment: 'jsdom',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: [
     '**/__tests__/**/*.ts',
@@ -8,6 +8,12 @@ module.exports = {
   ],
   transform: {
     '^.+\\.ts$': 'ts-jest',
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(whois)/)'
+  ],
+  moduleNameMapper: {
+    '^whois$': '<rootDir>/tests/__mocks__/whois.js'
   },
   collectCoverageFrom: [
     'src/**/*.ts',

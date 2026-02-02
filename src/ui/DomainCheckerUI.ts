@@ -23,6 +23,9 @@ export class DomainCheckerUI {
 
   private currentResults: IDomainResult[] = [];
   private failedDomains: string[] = [];
+  private retryAttempts: Map<string, number> = new Map();
+  private maxRetryAttempts: number = 3;
+  private baseRetryDelay: number = 1000; // 1 second
 
   constructor() {
     this.domainController = new DomainController();
@@ -155,10 +158,22 @@ export class DomainCheckerUI {
   }
 
   /**
-   * Handle retry for failed domains
+   * Handle retry for failed domains with exponential backoff
    */
   private async handleRetry(): Promise<void> {
     if (this.failedDomains.length === 0) {
+      return;
+    }
+
+    // Filter domains that haven't exceeded max retry attempts
+    const domainsToRetry = this.failedDomains.filter(domain => {
+      const attempts = this.retryAttempts.get(domain) || 0;
+      return attempts < this.maxRetryAttempts;
+    });
+
+    if (domainsToRetry.length === 0) {
+      this.showError('All failed domains have reached maximum retry attempts.');
+      this.hideRetryButton();
       return;
     }
 
@@ -166,12 +181,23 @@ export class DomainCheckerUI {
       this.setLoadingState(true);
       this.showProgress('Retrying failed domains...', 0);
       
-      // Update failed domains to checking state
-      this.failedDomains.forEach(domain => {
-        this.updateDomainResult(domain, AvailabilityStatus.ERROR, 'Retrying...');
+      // Update retry attempts and show retrying state
+      domainsToRetry.forEach(domain => {
+        const attempts = this.retryAttempts.get(domain) || 0;
+        this.retryAttempts.set(domain, attempts + 1);
+        this.updateDomainResult(domain, AvailabilityStatus.ERROR, `Retrying... (${attempts + 1}/${this.maxRetryAttempts})`);
       });
 
-      const response = await this.domainController.checkDomains(this.failedDomains);
+      // Calculate delay based on retry attempts (exponential backoff)
+      const maxAttempts = Math.max(...domainsToRetry.map(d => this.retryAttempts.get(d) || 0));
+      const delay = this.baseRetryDelay * Math.pow(2, maxAttempts - 1);
+      
+      if (delay > this.baseRetryDelay) {
+        this.showProgress(`Waiting ${Math.round(delay / 1000)}s before retry...`, 0);
+        await this.sleep(delay);
+      }
+
+      const response = await this.domainController.checkDomains(domainsToRetry);
       this.processQueryResponse(response);
       
     } catch (error) {
@@ -184,7 +210,14 @@ export class DomainCheckerUI {
   }
 
   /**
-   * Process query response from controller
+   * Sleep utility for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Process query response from controller with enhanced error handling
    */
   private processQueryResponse(response: IQueryResponse): void {
     // Update successful results
@@ -198,57 +231,187 @@ export class DomainCheckerUI {
       } else {
         this.currentResults.push(result);
       }
+
+      // Remove from failed domains if successful
+      const failedIndex = this.failedDomains.indexOf(result.domain);
+      if (failedIndex >= 0) {
+        this.failedDomains.splice(failedIndex, 1);
+      }
     });
 
-    // Handle errors
-    this.failedDomains = [];
+    // Handle errors with detailed feedback
     if (response.errors.length > 0) {
       response.errors.forEach(error => {
-        this.updateDomainResult(error.domain, AvailabilityStatus.ERROR, 'Check failed');
-        this.failedDomains.push(error.domain);
+        const attempts = this.retryAttempts.get(error.domain) || 0;
+        const canRetry = attempts < this.maxRetryAttempts;
+        
+        let statusText = this.getDetailedErrorMessage(error.message, attempts, canRetry);
+        this.updateDomainResult(error.domain, AvailabilityStatus.ERROR, statusText);
+        
+        // Add to failed domains if not already there and can retry
+        if (canRetry && !this.failedDomains.includes(error.domain)) {
+          this.failedDomains.push(error.domain);
+        }
       });
       
-      this.showRetryButton();
+      // Show retry button only if there are retryable domains
+      const retryableDomains = this.failedDomains.filter(domain => {
+        const attempts = this.retryAttempts.get(domain) || 0;
+        return attempts < this.maxRetryAttempts;
+      });
+
+      if (retryableDomains.length > 0) {
+        this.showRetryButton();
+        this.updateRetryButtonText(retryableDomains.length);
+      } else {
+        this.hideRetryButton();
+      }
     } else {
       this.hideRetryButton();
     }
 
-    // Show summary if there were errors
-    if (response.errors.length > 0) {
-      const errorCount = response.errors.length;
-      const successCount = response.results.length;
-      this.showError(`${successCount} domains checked successfully, ${errorCount} failed. Use retry button to check failed domains.`);
+    // Show enhanced summary
+    this.showResultsSummary(response);
+  }
+
+  /**
+   * Get detailed error message based on error type and retry attempts
+   */
+  private getDetailedErrorMessage(errorMessage: string, attempts: number, canRetry: boolean): string {
+    const baseMessage = this.categorizeError(errorMessage);
+    
+    if (attempts > 0) {
+      if (canRetry) {
+        return `${baseMessage} (Attempt ${attempts + 1}/${this.maxRetryAttempts})`;
+      } else {
+        return `${baseMessage} (Max retries reached)`;
+      }
+    }
+    
+    return baseMessage;
+  }
+
+  /**
+   * Categorize error messages for better user understanding
+   */
+  private categorizeError(errorMessage: string): string {
+    const lowerMessage = errorMessage.toLowerCase();
+    
+    if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
+      return 'Request timeout';
+    } else if (lowerMessage.includes('network') || lowerMessage.includes('connection')) {
+      return 'Network error';
+    } else if (lowerMessage.includes('dns')) {
+      return 'DNS lookup failed';
+    } else if (lowerMessage.includes('whois')) {
+      return 'WHOIS query failed';
+    } else if (lowerMessage.includes('rate limit') || lowerMessage.includes('too many')) {
+      return 'Rate limited';
+    } else {
+      return 'Check failed';
     }
   }
 
   /**
-   * Create placeholder results while checking
+   * Update retry button text with count
+   */
+  private updateRetryButtonText(retryableCount: number): void {
+    this.retryButton.textContent = `Retry Failed Checks (${retryableCount})`;
+  }
+
+  /**
+   * Show enhanced results summary
+   */
+  private showResultsSummary(response: IQueryResponse): void {
+    const successCount = response.results.length;
+    const errorCount = response.errors.length;
+    
+    if (errorCount > 0) {
+      const retryableCount = this.failedDomains.filter(domain => {
+        const attempts = this.retryAttempts.get(domain) || 0;
+        return attempts < this.maxRetryAttempts;
+      }).length;
+      
+      let message = `${successCount} domains checked successfully, ${errorCount} failed.`;
+      
+      if (retryableCount > 0) {
+        message += ` ${retryableCount} domains can be retried.`;
+      }
+      
+      if (errorCount > retryableCount) {
+        const maxRetriedCount = errorCount - retryableCount;
+        message += ` ${maxRetriedCount} domains reached maximum retry attempts.`;
+      }
+      
+      this.showError(message);
+    } else if (successCount > 0) {
+      this.showSuccess(`All ${successCount} domains checked successfully!`);
+    }
+  }
+
+  /**
+   * Show success message
+   */
+  private showSuccess(message: string): void {
+    this.errorMessage.textContent = message;
+    this.errorMessage.className = 'success-message';
+    this.errorMessage.classList.remove('hidden');
+  }
+
+  /**
+   * Create placeholder results while checking with enhanced loading indicators
    */
   private createPlaceholderResults(domains: string[]): void {
     this.resultsGrid.innerHTML = '';
     
-    domains.forEach(domain => {
+    domains.forEach((domain, index) => {
       const resultElement = this.createResultElement(domain, AvailabilityStatus.ERROR, 'Checking...');
       resultElement.classList.add('checking');
-      this.resultsGrid.appendChild(resultElement);
+      
+      // Add loading spinner to each domain
+      const statusElement = resultElement.querySelector('.status') as HTMLElement;
+      if (statusElement) {
+        statusElement.innerHTML = '<span class="loading-spinner"></span>Checking...';
+      }
+      
+      // Stagger the appearance for visual effect
+      setTimeout(() => {
+        this.resultsGrid.appendChild(resultElement);
+      }, index * 100);
     });
   }
 
   /**
-   * Update individual domain result
+   * Update individual domain result with smooth transitions
    */
   private updateDomainResult(domain: string, status: AvailabilityStatus, statusText: string): void {
     const existingElement = this.resultsGrid.querySelector(`[data-domain="${domain}"]`) as HTMLElement;
     
     if (existingElement) {
-      // Update existing element
-      existingElement.className = `result-item ${this.getStatusClass(status)}`;
+      // Add transition class
+      existingElement.classList.add('updating');
       
-      const statusElement = existingElement.querySelector('.status') as HTMLElement;
-      if (statusElement) {
-        statusElement.textContent = statusText;
-        statusElement.className = `status ${this.getStatusClass(status)}`;
-      }
+      setTimeout(() => {
+        // Update existing element
+        existingElement.className = `result-item ${this.getStatusClass(status)}`;
+        
+        const statusElement = existingElement.querySelector('.status') as HTMLElement;
+        if (statusElement) {
+          statusElement.textContent = statusText;
+          statusElement.className = `status ${this.getStatusClass(status)}`;
+        }
+        
+        // Remove transition class
+        existingElement.classList.remove('updating');
+        
+        // Add completion animation for successful results
+        if (status !== AvailabilityStatus.ERROR) {
+          existingElement.classList.add('completed');
+          setTimeout(() => {
+            existingElement.classList.remove('completed');
+          }, 600);
+        }
+      }, 150);
     } else {
       // Create new element
       const resultElement = this.createResultElement(domain, status, statusText);
@@ -378,12 +541,30 @@ export class DomainCheckerUI {
   }
 
   /**
-   * Show progress indicator
+   * Show progress indicator with enhanced feedback
    */
   private showProgress(text: string, percentage: number): void {
     this.progressText.textContent = text;
-    this.progressFill.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+    const clampedPercentage = Math.min(100, Math.max(0, percentage));
+    this.progressFill.style.width = `${clampedPercentage}%`;
+    
+    // Add progress color based on percentage
+    if (clampedPercentage < 30) {
+      this.progressFill.style.backgroundColor = '#e74c3c';
+    } else if (clampedPercentage < 70) {
+      this.progressFill.style.backgroundColor = '#f39c12';
+    } else {
+      this.progressFill.style.backgroundColor = '#27ae60';
+    }
+    
     this.progressIndicator.classList.remove('hidden');
+    
+    // Add pulse animation for active progress
+    if (clampedPercentage > 0 && clampedPercentage < 100) {
+      this.progressIndicator.classList.add('active');
+    } else {
+      this.progressIndicator.classList.remove('active');
+    }
   }
 
   /**
@@ -401,13 +582,14 @@ export class DomainCheckerUI {
   }
 
   /**
-   * Clear all results
+   * Clear all results and reset retry state
    */
   private clearResults(): void {
     this.resultsGrid.innerHTML = '';
     this.errorMessage.classList.add('hidden');
     this.currentResults = [];
     this.failedDomains = [];
+    this.retryAttempts.clear();
     this.hideRetryButton();
   }
 

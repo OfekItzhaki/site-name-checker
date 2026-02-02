@@ -135,6 +135,15 @@ body {
     margin-bottom: 2rem;
 }
 
+.progress-indicator.active .progress-bar {
+    animation: progressPulse 2s ease-in-out infinite;
+}
+
+@keyframes progressPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
 .progress-bar {
     width: 100%;
     height: 8px;
@@ -147,13 +156,14 @@ body {
 .progress-fill {
     height: 100%;
     background-color: #3498db;
-    transition: width 0.3s ease;
+    transition: width 0.3s ease, background-color 0.3s ease;
     width: 0%;
 }
 
 .progress-text {
     font-size: 0.9rem;
     color: #7f8c8d;
+    font-weight: 500;
 }
 
 /* Results grid */
@@ -168,8 +178,30 @@ body {
     align-items: center;
     padding: 1rem;
     border: 1px solid #e1e8ed;
-    border-radius: 4px;
-    transition: border-color 0.3s ease;
+    border-radius: 8px;
+    background-color: white;
+    transition: all 0.3s ease;
+    transform: translateY(0);
+}
+
+.result-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.result-item.updating {
+    opacity: 0.7;
+    transform: scale(0.98);
+}
+
+.result-item.completed {
+    animation: completePulse 0.6s ease-out;
+}
+
+@keyframes completePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3); }
+    100% { transform: scale(1); }
 }
 
 .result-item.available {
@@ -223,6 +255,27 @@ body {
 .status.checking {
     background-color: #3498db;
     color: white;
+}
+
+/* Error and success messages */
+.error-message {
+    background-color: #fee;
+    color: #c53030;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid #feb2b2;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.success-message {
+    background-color: #f0fff4;
+    color: #22543d;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid #9ae6b4;
+    margin-top: 1rem;
+    font-size: 0.9rem;
 }
 
 /* Retry button */

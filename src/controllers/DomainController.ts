@@ -80,10 +80,10 @@ export class DomainController {
       const validationResult = this.validator.validateDomainName(baseDomain);
       if (!validationResult.isValid) {
         // Convert validation errors to query errors
-        const errors: IQueryError[] = validationResult.errors.map(message => ({
+        const errors: IQueryError[] = validationResult.errors.map(error => ({
           domain: domainName,
           errorType: 'INVALID_RESPONSE' as const,
-          message,
+          message: error.message,
           retryable: false,
           timestamp: new Date()
         }));
@@ -451,7 +451,10 @@ export class DomainController {
    * Dispose of resources and clean up
    */
   dispose(): void {
-    // Clean up event listeners and reset state
-    this.stateManager.transitionTo(ApplicationStateType.IDLE);
+    // Clean up event listeners and reset state only if not already idle
+    const currentState = this.stateManager.getCurrentStateType();
+    if (currentState !== ApplicationStateType.IDLE) {
+      this.stateManager.transitionTo(ApplicationStateType.IDLE);
+    }
   }
 }

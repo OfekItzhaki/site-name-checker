@@ -1,5 +1,5 @@
 import type { IInputValidator } from './IInputValidator';
-import type { IValidationResult } from '../controllers/IDomainController';
+import type { IValidationResult, IValidationError } from '../controllers/IDomainController';
 
 /**
  * Input validator for domain names
@@ -24,16 +24,22 @@ export class InputValidator implements IInputValidator {
    * @returns Validation result with detailed error information
    */
   public validateDomainName(domain: string): IValidationResult {
-    const errors: string[] = [];
+    const errors: IValidationError[] = [];
     
     // Check if input is empty or invalid type
     if (typeof domain !== 'string' || !domain.trim()) {
-      errors.push('Domain name cannot be empty');
+      const error: IValidationError = {
+        code: 'EMPTY_INPUT',
+        message: 'Domain name cannot be empty'
+      };
+      errors.push(error);
       
       return {
         isValid: false,
         sanitizedDomain: '',
-        errors
+        sanitizedInput: '',
+        errors,
+        errorMessage: error.message
       };
     }
 
@@ -42,12 +48,18 @@ export class InputValidator implements IInputValidator {
     
     // Check if input is empty after sanitization
     if (!sanitizedInput) {
-      errors.push('Domain name cannot be empty');
+      const error: IValidationError = {
+        code: 'EMPTY_INPUT',
+        message: 'Domain name cannot be empty'
+      };
+      errors.push(error);
       
       return {
         isValid: false,
         sanitizedDomain: '',
-        errors
+        sanitizedInput: '',
+        errors,
+        errorMessage: error.message
       };
     }
 
@@ -57,36 +69,59 @@ export class InputValidator implements IInputValidator {
         ? `Domain name must be at least ${InputValidator.MIN_LENGTH} character long`
         : `Domain name must be no more than ${InputValidator.MAX_LENGTH} characters long`;
       
-      errors.push(message);
+      const error: IValidationError = {
+        code: 'INVALID_LENGTH',
+        message
+      };
+      errors.push(error);
     }
 
     // Validate characters - check original trimmed input, not sanitized
     const trimmedInput = domain.trim().toLowerCase();
     if (!this.hasValidCharacters(trimmedInput)) {
-      errors.push('Domain name can only contain letters, numbers, and hyphens');
+      const error: IValidationError = {
+        code: 'INVALID_CHARACTERS',
+        message: 'Domain name can only contain letters, numbers, and hyphens'
+      };
+      errors.push(error);
     }
 
     // Validate format - use sanitized input for format checks
     if (!this.hasValidFormat(sanitizedInput)) {
-      errors.push('Domain name cannot start or end with a hyphen');
+      const error: IValidationError = {
+        code: 'INVALID_FORMAT',
+        message: 'Domain name cannot start or end with a hyphen'
+      };
+      errors.push(error);
     }
 
     // Check for consecutive hyphens at positions 3-4 (reserved for IDN)
     if (InputValidator.CONSECUTIVE_HYPHEN_REGEX.test(sanitizedInput)) {
-      errors.push('Domain name cannot have consecutive hyphens at positions 3-4 (reserved for internationalized domains)');
+      const error: IValidationError = {
+        code: 'RESERVED_FORMAT',
+        message: 'Domain name cannot have consecutive hyphens at positions 3-4 (reserved for internationalized domains)'
+      };
+      errors.push(error);
     }
 
     // Check for all numeric domain (not allowed)
     if (/^\d+$/.test(sanitizedInput)) {
-      errors.push('Domain name cannot be all numeric');
+      const error: IValidationError = {
+        code: 'ALL_NUMERIC',
+        message: 'Domain name cannot be all numeric'
+      };
+      errors.push(error);
     }
 
     const isValid = errors.length === 0;
+    const primaryError = errors.length > 0 ? errors[0] : undefined;
 
     return {
       isValid,
       sanitizedDomain: isValid ? sanitizedInput : '',
-      errors
+      sanitizedInput: sanitizedInput,
+      errors,
+      ...(primaryError && { errorMessage: primaryError.message })
     };
   }
 
