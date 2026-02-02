@@ -24,7 +24,7 @@ export class CompletedState extends BaseApplicationState {
    * Handle user input in completed state
    * @param input - User input string
    */
-  handleInput(input: string): void {
+  override handleInput(input: string): void {
     super.handleInput(input);
     
     // Clear any previous errors when user starts typing new domain
@@ -37,7 +37,7 @@ export class CompletedState extends BaseApplicationState {
    * Handle form submission in completed state
    * Allows starting a new domain check
    */
-  handleSubmit(): void {
+  override handleSubmit(): void {
     const input = this.context.currentInput?.trim();
     
     if (!input) {
@@ -58,7 +58,7 @@ export class CompletedState extends BaseApplicationState {
    * This can happen if there are delayed results or retries
    * @param result - Domain availability result
    */
-  handleResult(result: IDomainResult): void {
+  override handleResult(result: IDomainResult): void {
     super.handleResult(result);
     
     // Update the display with the new result
@@ -69,20 +69,21 @@ export class CompletedState extends BaseApplicationState {
    * Handle retry request in completed state
    * @param domain - Domain to retry (optional)
    */
-  handleRetry(domain?: string): void {
+  override handleRetry(domain?: string): void {
     if (domain) {
       // Retry specific domain
       const resultIndex = this.context.results.findIndex(r => r.domain === domain);
-      if (resultIndex >= 0) {
-        this.context.results[resultIndex].status = AvailabilityStatus.CHECKING;
-        this.context.results[resultIndex].retryCount = (this.context.results[resultIndex].retryCount || 0) + 1;
-        this.context.results[resultIndex].lastChecked = new Date();
+      if (resultIndex >= 0 && this.context.results[resultIndex]) {
+        const result = this.context.results[resultIndex];
+        result.status = AvailabilityStatus.CHECKING;
+        result.retryCount = (result.retryCount || 0) + 1;
+        result.lastChecked = new Date();
         
         // Update progress
         this.context.progress.completed = Math.max(0, this.context.progress.completed - 1);
         
         // Notify UI of the retry
-        this.uiCallbacks?.onResultUpdate(this.context.results[resultIndex]);
+        this.uiCallbacks?.onResultUpdate(result);
       }
     } else {
       // Retry all failed domains
@@ -92,7 +93,7 @@ export class CompletedState extends BaseApplicationState {
           result.status = AvailabilityStatus.CHECKING;
           result.retryCount = (result.retryCount || 0) + 1;
           result.lastChecked = new Date();
-          result.error = undefined;
+          result.error = undefined as any;
           retriedCount++;
           
           // Notify UI of the retry
@@ -118,7 +119,7 @@ export class CompletedState extends BaseApplicationState {
    * Enter completed state
    * @param context - Application state context
    */
-  onEnter(context: IApplicationStateContext): void {
+  override onEnter(context: IApplicationStateContext): void {
     super.onEnter(context);
     
     // Ensure progress is accurate
@@ -150,7 +151,7 @@ export class CompletedState extends BaseApplicationState {
    * @returns Base domain name
    */
   private getBaseDomainFromResults(): string {
-    return this.context.results.length > 0 ? this.context.results[0].baseDomain : '';
+    return this.context.results.length > 0 && this.context.results[0] ? this.context.results[0].baseDomain : '';
   }
 
   /**
@@ -158,7 +159,7 @@ export class CompletedState extends BaseApplicationState {
    * @param targetState - Target state to transition to
    * @returns True if transition is allowed
    */
-  canTransitionTo(targetState: ApplicationStateType): boolean {
+  override canTransitionTo(targetState: ApplicationStateType): boolean {
     // From completed, can go to validating (new search), checking (retry), error, or idle
     return targetState === 'validating' || 
            targetState === 'checking' ||

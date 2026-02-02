@@ -27,7 +27,7 @@ export class CheckingState extends BaseApplicationState {
    * Input is disabled during checking, but we store it for potential next check
    * @param input - User input string
    */
-  handleInput(input: string): void {
+  override handleInput(input: string): void {
     // Store input but don't process it while checking
     this.context.currentInput = input;
     this.context.lastActionAt = new Date();
@@ -37,7 +37,7 @@ export class CheckingState extends BaseApplicationState {
    * Handle form submission in checking state
    * Submission is disabled during checking
    */
-  handleSubmit(): void {
+  override handleSubmit(): void {
     // Cannot submit while checking is in progress
     throw new Error('Cannot submit while domain checking is in progress');
   }
@@ -46,7 +46,7 @@ export class CheckingState extends BaseApplicationState {
    * Handle domain result in checking state
    * @param result - Domain availability result
    */
-  handleResult(result: IDomainResult): void {
+  override handleResult(result: IDomainResult): void {
     super.handleResult(result);
     
     // Check if all domains have been processed
@@ -64,7 +64,7 @@ export class CheckingState extends BaseApplicationState {
    * Handle error in checking state
    * @param error - Error message or object
    */
-  handleError(error: string | Error): void {
+  override handleError(error: string | Error): void {
     super.handleError(error);
     
     // Check if we should transition to error state or continue with partial results
@@ -89,13 +89,14 @@ export class CheckingState extends BaseApplicationState {
    * Handle retry request in checking state
    * @param domain - Domain to retry (optional)
    */
-  handleRetry(domain?: string): void {
+  override handleRetry(domain?: string): void {
     if (domain) {
       // Retry specific domain
       const resultIndex = this.context.results.findIndex(r => r.domain === domain);
-      if (resultIndex >= 0) {
-        this.context.results[resultIndex].status = AvailabilityStatus.CHECKING;
-        this.context.results[resultIndex].retryCount = (this.context.results[resultIndex].retryCount || 0) + 1;
+      if (resultIndex >= 0 && this.context.results[resultIndex]) {
+        const result = this.context.results[resultIndex];
+        result.status = AvailabilityStatus.CHECKING;
+        result.retryCount = (result.retryCount || 0) + 1;
         this.context.progress.completed = Math.max(0, this.context.progress.completed - 1);
       }
     } else {
@@ -120,7 +121,7 @@ export class CheckingState extends BaseApplicationState {
    * Enter checking state
    * @param context - Application state context
    */
-  onEnter(context: IApplicationStateContext): void {
+  override onEnter(context: IApplicationStateContext): void {
     super.onEnter(context);
     
     // Initialize domain results for all TLDs
@@ -164,7 +165,7 @@ export class CheckingState extends BaseApplicationState {
    * @param targetState - Target state to transition to
    * @returns True if transition is allowed
    */
-  canTransitionTo(targetState: ApplicationStateType): boolean {
+  override canTransitionTo(targetState: ApplicationStateType): boolean {
     // From checking, can go to completed (when done), error (if critical failure), or idle (if cancelled)
     return targetState === 'completed' || 
            targetState === 'error' || 
@@ -175,7 +176,7 @@ export class CheckingState extends BaseApplicationState {
    * Exit checking state
    * @param context - Application state context
    */
-  onExit(context: IApplicationStateContext): void {
+  override onExit(context: IApplicationStateContext): void {
     super.onExit(context);
     
     // Ensure any remaining checking statuses are resolved

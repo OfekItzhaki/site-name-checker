@@ -46,11 +46,11 @@ This implementation plan breaks down the domain availability checker into discre
     - Include format validation (no leading/trailing hyphens)
     - _Requirements: 1.1, 1.2, 5.1, 5.3_
   
-  - [~] 2.2 Write property test for domain validation
+  - [x] 2.2 Write property test for domain validation
     - **Property 1: Domain Input Validation**
     - **Validates: Requirements 1.1, 1.2, 5.1, 5.3**
   
-  - [~] 2.3 Write unit tests for validation edge cases
+  - [x] 2.3 Write unit tests for validation edge cases
     - Test empty input handling
     - Test specific invalid character combinations
     - _Requirements: 1.3_

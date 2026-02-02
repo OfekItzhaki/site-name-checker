@@ -158,7 +158,7 @@ export class InputValidator implements IInputValidator {
       .trim()                    // Remove leading/trailing whitespace
       .toLowerCase()             // Convert to lowercase
       .replace(/\s+/g, '')       // Remove all whitespace
-      .replace(/[^\w-]/g, '');   // Remove invalid characters except alphanumeric and hyphens
+      .replace(/[^a-z0-9-]/g, ''); // Remove invalid characters except alphanumeric and hyphens
   }
 
   /**

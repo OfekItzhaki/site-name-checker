@@ -5,7 +5,7 @@ import type {
   IUICallbacks 
 } from './IApplicationState';
 import { ApplicationStateType } from './IApplicationState';
-import type { IDomainResult, IQueryError } from '../../models';
+import type { IDomainResult } from '../../models';
 
 import { IdleState } from './IdleState';
 import { ValidatingState } from './ValidatingState';
@@ -156,7 +156,7 @@ export class ApplicationStateManager implements IApplicationStateManager {
       errors: [],
       progress: { completed: 0, total: 0 },
       lastActionAt: new Date(),
-      uiCallbacks: this.context.uiCallbacks // Preserve UI callbacks
+      ...(this.context.uiCallbacks && { uiCallbacks: this.context.uiCallbacks })
     };
 
     // Clear history
@@ -195,7 +195,7 @@ export class ApplicationStateManager implements IApplicationStateManager {
         this.transitionTo('validating' as ApplicationStateType);
       }
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error as string | Error);
     }
   }
 
@@ -271,7 +271,7 @@ export class ApplicationStateManager implements IApplicationStateManager {
         }
       }
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error as string | Error);
     }
   }
 

@@ -25,7 +25,7 @@ export class ErrorState extends BaseApplicationState {
    * Handle user input in error state
    * @param input - User input string
    */
-  handleInput(input: string): void {
+  override handleInput(input: string): void {
     super.handleInput(input);
     
     // Clear error state when user starts typing (if recoverable)
@@ -39,7 +39,7 @@ export class ErrorState extends BaseApplicationState {
    * Handle form submission in error state
    * Allow retry if error is recoverable
    */
-  handleSubmit(): void {
+  override handleSubmit(): void {
     if (!this.isRecoverable) {
       this.uiCallbacks?.onError('System error - please refresh the page');
       return;
@@ -62,7 +62,7 @@ export class ErrorState extends BaseApplicationState {
    * Handle error in error state
    * @param error - Error message or object
    */
-  handleError(error: string | Error): void {
+  override handleError(error: string | Error): void {
     const errorMessage = error instanceof Error ? error.message : error;
     this.errorMessage = errorMessage;
     
@@ -81,7 +81,7 @@ export class ErrorState extends BaseApplicationState {
    * Handle retry request in error state
    * @param domain - Domain to retry (optional)
    */
-  handleRetry(domain?: string): void {
+  override handleRetry(domain?: string): void {
     if (!this.isRecoverable) {
       this.uiCallbacks?.onError('System error - please refresh the page');
       return;
@@ -99,7 +99,7 @@ export class ErrorState extends BaseApplicationState {
     // Reset any failed results to allow retry
     this.context.results.forEach(result => {
       if (result.error) {
-        result.error = undefined;
+        result.error = undefined as any;
         result.retryCount = (result.retryCount || 0) + 1;
       }
     });
@@ -111,7 +111,7 @@ export class ErrorState extends BaseApplicationState {
    * Enter error state
    * @param context - Application state context
    */
-  onEnter(context: IApplicationStateContext): void {
+  override onEnter(context: IApplicationStateContext): void {
     super.onEnter(context);
     
     // Analyze errors to determine error type and recoverability
@@ -241,7 +241,7 @@ export class ErrorState extends BaseApplicationState {
    * @param targetState - Target state to transition to
    * @returns True if transition is allowed
    */
-  canTransitionTo(targetState: ApplicationStateType): boolean {
+  override canTransitionTo(targetState: ApplicationStateType): boolean {
     // From error state, transitions depend on recoverability
     if (!this.isRecoverable) {
       // Only allow transition to idle (reset)
@@ -263,7 +263,7 @@ export class ErrorState extends BaseApplicationState {
     isRecoverable: boolean;
     errorCount: number;
     retryableCount: number;
-    errors: typeof this.context.errors;
+    errors: Array<any>;
   } {
     return {
       message: this.errorMessage,
