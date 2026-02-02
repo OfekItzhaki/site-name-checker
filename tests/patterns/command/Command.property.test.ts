@@ -47,6 +47,10 @@ class PropertyTestStrategy implements IQueryStrategy {
     return 'PropertyTestStrategy';
   }
 
+  getServiceType(): string {
+    return 'MOCK';
+  }
+
   getConfig(): any {
     return { failureRate: this.failureRate };
   }

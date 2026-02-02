@@ -7,8 +7,10 @@ import type { IQueryStrategy, IStrategyConfig } from '../../../src/patterns/stra
 // Mock query strategy for property testing
 class MockQueryStrategy implements IQueryStrategy {
   private config: IStrategyConfig = {
-    timeout: 5000,
-    retries: 3,
+    timeoutMs: 5000,
+    maxRetries: 3,
+    retryDelayMs: 1000,
+    useExponentialBackoff: false,
     priority: 1,
     enabled: true
   };
@@ -40,6 +42,10 @@ class MockQueryStrategy implements IQueryStrategy {
 
   getName(): string {
     return 'MockStrategy';
+  }
+
+  getServiceType(): string {
+    return 'MOCK';
   }
 
   getConfig(): IStrategyConfig {

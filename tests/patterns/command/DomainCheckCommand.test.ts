@@ -46,6 +46,10 @@ class MockQueryStrategy implements IQueryStrategy {
     return 'MockStrategy';
   }
 
+  getServiceType(): string {
+    return 'MOCK';
+  }
+
   getConfig(): any {
     return {};
   }

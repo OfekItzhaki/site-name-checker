@@ -36,19 +36,6 @@ export interface IQueryStrategy {
   getServiceType(): string;
 
   /**
-   * Get the current configuration
-   * @returns Configuration object
-   */
-  getConfig(): any;
-
-  /**
-   * Set configuration options
-   * @param config - Configuration object
-   */
-  setConfig(config: any): void;
-}
-
-  /**
    * Get strategy-specific configuration
    * @returns Strategy configuration
    */

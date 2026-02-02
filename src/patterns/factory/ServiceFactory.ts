@@ -48,11 +48,14 @@ export class ServiceFactory implements IServiceFactory {
       enabled: true
     });
     
+    // Create adapter to match IQueryService interface
+    const adapter = this.createServiceAdapter(service, finalConfig);
+    
     if (cacheKey) {
-      this.serviceInstances.set(cacheKey, service as any);
+      this.serviceInstances.set(cacheKey, adapter);
     }
     
-    return service as any;
+    return adapter;
   }
 
   /**
@@ -80,11 +83,14 @@ export class ServiceFactory implements IServiceFactory {
       enabled: true
     });
     
+    // Create adapter to match IQueryService interface
+    const adapter = this.createServiceAdapter(service, finalConfig);
+    
     if (cacheKey) {
-      this.serviceInstances.set(cacheKey, service as any);
+      this.serviceInstances.set(cacheKey, adapter);
     }
     
-    return service as any;
+    return adapter;
   }
 
   /**
@@ -112,11 +118,14 @@ export class ServiceFactory implements IServiceFactory {
       enabled: true
     });
     
+    // Create adapter to match IQueryService interface
+    const adapter = this.createServiceAdapter(service, finalConfig);
+    
     if (cacheKey) {
-      this.serviceInstances.set(cacheKey, service as any);
+      this.serviceInstances.set(cacheKey, adapter);
     }
     
-    return service as any;
+    return adapter;
   }
 
   /**
@@ -230,6 +239,36 @@ export class ServiceFactory implements IServiceFactory {
    */
   private getConfigHash(config: IServiceConfig): string {
     return JSON.stringify(config);
+  }
+
+  /**
+   * Create an adapter to bridge IQueryStrategy and IQueryService interfaces
+   * @param strategy - The strategy service to adapt
+   * @param config - Service configuration
+   * @returns Adapted service matching IQueryService interface
+   */
+  private createServiceAdapter(strategy: any, config: IServiceConfig): IQueryService {
+    return {
+      checkDomain: (domain: string) => strategy.execute(domain),
+      getServiceType: () => strategy.getServiceType(),
+      getConfig: () => ({
+        timeoutMs: config.timeoutMs,
+        maxRetries: config.maxRetries,
+        retryDelayMs: config.retryDelayMs,
+        useExponentialBackoff: config.useExponentialBackoff
+      }),
+      setConfig: (newConfig: Partial<IServiceConfig>) => {
+        const updatedConfig = { ...config, ...newConfig };
+        strategy.setConfig({
+          timeoutMs: updatedConfig.timeoutMs,
+          maxRetries: updatedConfig.maxRetries,
+          retryDelayMs: updatedConfig.retryDelayMs,
+          useExponentialBackoff: updatedConfig.useExponentialBackoff,
+          priority: strategy.getPriority(),
+          enabled: true
+        });
+      }
+    };
   }
 
   /**

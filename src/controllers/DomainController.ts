@@ -1,6 +1,8 @@
-import type { IQueryRequest, IQueryResponse, IQueryError } from '../models';
+import type { IQueryRequest, IQueryResponse, IQueryError, IDomainResult } from '../models';
+import { AvailabilityStatus } from '../models/AvailabilityStatus';
 import { InputValidator } from '../validators/InputValidator';
 import { HybridQueryService } from '../services/HybridQueryService';
+import { DomainQueryEngine } from '../services/DomainQueryEngine';
 import { ApplicationStateManager } from '../patterns/state/ApplicationStateManager';
 import { ApplicationStateType } from '../patterns/state/IApplicationState';
 import { EventBus } from '../patterns/observer/EventBus';
@@ -17,6 +19,7 @@ import type { IQueryStrategy } from '../patterns/strategy/IQueryStrategy';
 export class DomainController {
   private validator: InputValidator;
   private defaultStrategy: IQueryStrategy;
+  private queryEngine: DomainQueryEngine;
   private stateManager: ApplicationStateManager;
   private eventBus: IEventBus;
   private commandInvoker: CommandInvoker;
@@ -25,6 +28,7 @@ export class DomainController {
     // Initialize core components
     this.validator = new InputValidator();
     this.defaultStrategy = new HybridQueryService(); // Use HybridQueryService as default strategy
+    this.queryEngine = new DomainQueryEngine();
     this.stateManager = new ApplicationStateManager();
     this.eventBus = new EventBus();
     this.commandInvoker = new CommandInvoker();
@@ -43,26 +47,15 @@ export class DomainController {
     const baseDomain = this.extractBaseDomain(domainName);
     const tld = this.extractTLD(domainName);
     
-    // Ensure we have a valid TLD
-    if (!tld) {
-      const error: IQueryError = {
-        domain: domainName,
-        errorType: 'INVALID_RESPONSE' as const,
-        message: 'Invalid domain format: missing TLD',
-        retryable: false,
-        timestamp: new Date()
-      };
-
-      return {
-        requestId,
-        results: [],
-        errors: [error],
-        completedAt: new Date(),
-        totalExecutionTime: 0
-      };
+    // Determine TLDs to check
+    let tlds: string[];
+    if (tld) {
+      // Specific TLD provided - check only that one
+      tlds = [tld];
+    } else {
+      // No TLD provided - check all supported TLDs
+      tlds = this.queryEngine.getSupportedTLDs();
     }
-    
-    const tlds = [tld];
     
     const request: IQueryRequest = {
       baseDomain,
@@ -72,6 +65,9 @@ export class DomainController {
     };
 
     try {
+      // Set the context with the base domain before state transitions
+      this.stateManager.updateContext({ currentInput: baseDomain });
+      
       // Transition to validating state
       await this.stateManager.transitionTo(ApplicationStateType.VALIDATING);
       this.publishStateChange('validating', { request });
@@ -101,30 +97,72 @@ export class DomainController {
       }
 
       // Transition to checking state
+      this.stateManager.updateContext({ currentInput: validationResult.sanitizedDomain });
       await this.stateManager.transitionTo(ApplicationStateType.CHECKING);
       this.publishStateChange('checking', { request });
 
-      // Create and execute domain check command
+      // Create and execute domain check commands for all TLDs
       const sanitizedDomain = validationResult.sanitizedDomain;
-      const fullDomain = sanitizedDomain + tld;
+      const results: IDomainResult[] = [];
       
-      const command = new DomainCheckCommand(
-        fullDomain,
-        this.defaultStrategy
-      );
-
       const startTime = Date.now();
-      const commandResult = await this.commandInvoker.execute(command);
+      
+      for (const currentTld of tlds) {
+        const fullDomain = sanitizedDomain + currentTld;
+        
+        const command = new DomainCheckCommand(
+          fullDomain,
+          this.defaultStrategy
+        );
+
+        try {
+          const commandResult = await this.commandInvoker.execute(command);
+          
+          // Extract the actual result from command result
+          const result = commandResult.success && commandResult.data ? commandResult.data : null;
+          
+          if (result) {
+            results.push(result);
+          } else {
+            // Create error result for this domain
+            const errorResult: IDomainResult = {
+              domain: fullDomain,
+              baseDomain: sanitizedDomain,
+              tld: currentTld,
+              status: AvailabilityStatus.ERROR,
+              lastChecked: new Date(),
+              checkMethod: 'HYBRID' as const,
+              error: commandResult.error || 'Domain check failed',
+              retryCount: 0,
+              executionTime: 0
+            };
+            results.push(errorResult);
+          }
+        } catch (error) {
+          // Create error result for this domain
+          const errorResult: IDomainResult = {
+            domain: fullDomain,
+            baseDomain: sanitizedDomain,
+            tld: currentTld,
+            status: AvailabilityStatus.ERROR,
+            lastChecked: new Date(),
+            checkMethod: 'HYBRID' as const,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            retryCount: 0,
+            executionTime: 0
+          };
+          results.push(errorResult);
+        }
+      }
+
       const executionTime = Date.now() - startTime;
 
       // Extract the actual result from command result
-      const result = commandResult.success && commandResult.data ? commandResult.data : null;
-      
-      if (!result) {
+      if (results.length === 0) {
         const error: IQueryError = {
           domain: domainName,
           errorType: 'NETWORK' as const,
-          message: commandResult.error || 'Domain check failed',
+          message: 'All domain checks failed',
           retryable: true,
           timestamp: new Date()
         };
@@ -143,11 +181,11 @@ export class DomainController {
 
       // Transition to completed state
       await this.stateManager.transitionTo(ApplicationStateType.COMPLETED);
-      this.publishStateChange('completed', { request, results: [result] });
+      this.publishStateChange('completed', { request, results });
 
       return {
         requestId,
-        results: [result],
+        results,
         errors: [],
         completedAt: new Date(),
         totalExecutionTime: executionTime
@@ -194,6 +232,9 @@ export class DomainController {
     };
 
     try {
+      // Set the context with the base domain before state transitions
+      this.stateManager.updateContext({ currentInput: baseDomain });
+      
       // Transition to validating state
       await this.stateManager.transitionTo(ApplicationStateType.VALIDATING);
       this.publishStateChange('validating', { request });
@@ -221,7 +262,7 @@ export class DomainController {
         .map(({ domain, result }) => ({
           domain,
           errorType: 'INVALID_RESPONSE' as const,
-          message: `${domain}: ${result.errors.join(', ')}`,
+          message: `${domain}: ${result.errors.map(e => e.message).join(', ')}`,
           retryable: false,
           timestamp: new Date()
         }));
@@ -240,6 +281,9 @@ export class DomainController {
       }
 
       // Transition to checking state
+      // Use the first valid domain's base for context
+      const firstValidBase = validDomains.length > 0 ? this.extractBaseDomain(validDomains[0]!) : baseDomain;
+      this.stateManager.updateContext({ currentInput: firstValidBase });
       await this.stateManager.transitionTo(ApplicationStateType.CHECKING);
       this.publishStateChange('checking', { request, validDomains });
 
@@ -314,8 +358,8 @@ export class DomainController {
    * @returns Unsubscribe function
    */
   onStateChange(callback: (event: any) => void): () => void {
-    const unsubscribe = this.eventBus.subscribe('stateChange', callback);
-    return () => unsubscribe;
+    this.eventBus.subscribe('stateChange', callback);
+    return () => this.eventBus.unsubscribe('stateChange', callback);
   }
 
   /**
@@ -324,8 +368,8 @@ export class DomainController {
    * @returns Unsubscribe function
    */
   onProgress(callback: (event: any) => void): () => void {
-    const unsubscribe = this.eventBus.subscribe('progress', callback);
-    return () => unsubscribe;
+    this.eventBus.subscribe('progress', callback);
+    return () => this.eventBus.unsubscribe('progress', callback);
   }
 
   /**
@@ -334,8 +378,8 @@ export class DomainController {
    * @returns Unsubscribe function
    */
   onError(callback: (event: any) => void): () => void {
-    const unsubscribe = this.eventBus.subscribe('error', callback);
-    return () => unsubscribe;
+    this.eventBus.subscribe('error', callback);
+    return () => this.eventBus.unsubscribe('error', callback);
   }
 
   /**
@@ -374,7 +418,7 @@ export class DomainController {
    */
   setTimeout(timeout: number): void {
     // Configure timeout for the default strategy
-    this.defaultStrategy.setConfig({ timeout });
+    this.defaultStrategy.setConfig({ timeoutMs: timeout });
   }
 
   /**
@@ -427,11 +471,12 @@ export class DomainController {
    * @returns Base domain without TLD
    */
   private extractBaseDomain(domain: string): string {
-    const parts = domain.toLowerCase().split('.');
+    const trimmedDomain = domain.trim();
+    const parts = trimmedDomain.toLowerCase().split('.');
     if (parts.length >= 2) {
       return parts.slice(0, -1).join('.');
     }
-    return domain.toLowerCase();
+    return trimmedDomain.toLowerCase();
   }
 
   /**
@@ -440,7 +485,8 @@ export class DomainController {
    * @returns TLD including the dot
    */
   private extractTLD(domain: string): string {
-    const parts = domain.toLowerCase().split('.');
+    const trimmedDomain = domain.trim();
+    const parts = trimmedDomain.toLowerCase().split('.');
     if (parts.length >= 2) {
       return '.' + parts[parts.length - 1];
     }

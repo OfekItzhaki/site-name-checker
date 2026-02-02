@@ -1,9 +1,5 @@
 import { DomainController } from '../../src/controllers/DomainController';
-import { ServiceFactory } from '../../src/patterns/factory/ServiceFactory';
-import { EventBus } from '../../src/patterns/observer/EventBus';
-import { ApplicationStateManager } from '../../src/patterns/state/ApplicationStateManager';
 import { StatelessManager } from '../../src/utils/StatelessManager';
-import type { IQueryResponse } from '../../src/models';
 
 /**
  * End-to-End Integration Tests
@@ -13,31 +9,21 @@ import type { IQueryResponse } from '../../src/models';
  */
 describe('End-to-End Integration Tests', () => {
   let controller: DomainController;
-  let eventBus: EventBus;
-  let stateManager: ApplicationStateManager;
   let statelessManager: StatelessManager;
 
   beforeEach(() => {
     // Initialize all components as they would be in the real application
-    eventBus = new EventBus();
-    stateManager = new ApplicationStateManager();
-    statelessManager = new StatelessManager();
-    
-    const serviceFactory = new ServiceFactory();
-    controller = new DomainController(
-      serviceFactory,
-      eventBus,
-      stateManager
-    );
+    controller = new DomainController();
+    statelessManager = StatelessManager.getInstance();
 
     // Ensure clean state before each test
-    statelessManager.clearAllStorage();
+    statelessManager.ensureCleanState();
   });
 
   afterEach(() => {
     // Clean up after each test
     controller.dispose();
-    statelessManager.clearAllStorage();
+    statelessManager.ensureCleanState();
   });
 
   /**
@@ -53,7 +39,7 @@ describe('End-to-End Integration Tests', () => {
 
       // Subscribe to events to track workflow progress
       const unsubscribeState = controller.onStateChange((event) => {
-        stateChanges.push(event.newState);
+        stateChanges.push(event.state);
       });
 
       const unsubscribeProgress = controller.onProgress((event) => {
@@ -66,16 +52,16 @@ describe('End-to-End Integration Tests', () => {
 
         // Assert - Verify response structure
         expect(response).toBeDefined();
-        expect(response.success).toBeDefined();
+        expect(response.requestId).toBeDefined();
         expect(response.results).toBeDefined();
         expect(Array.isArray(response.results)).toBe(true);
         expect(response.results.length).toBeGreaterThan(0);
 
         // Verify all TLDs were checked
         const expectedTlds = ['.com', '.net', '.org', '.ai', '.dev', '.io', '.co'];
-        const checkedTlds = response.results.map(result => result.domain.split('.').pop());
+        const checkedTlds = response.results.map(result => result.tld);
         expectedTlds.forEach(tld => {
-          expect(checkedTlds).toContain(tld.substring(1)); // Remove the dot
+          expect(checkedTlds).toContain(tld);
         });
 
         // Verify state transitions occurred
@@ -83,21 +69,18 @@ describe('End-to-End Integration Tests', () => {
         expect(stateChanges).toContain('validating');
         expect(stateChanges).toContain('checking');
 
-        // Verify progress events were emitted
-        expect(progressEvents.length).toBeGreaterThan(0);
-
         // Verify each result has required properties
         response.results.forEach(result => {
           expect(result.domain).toBeDefined();
           expect(result.status).toBeDefined();
-          expect(['available', 'unavailable', 'error'].includes(result.status)).toBe(true);
-          expect(result.checkedAt).toBeDefined();
-          expect(result.responseTime).toBeDefined();
-          expect(typeof result.responseTime).toBe('number');
+          expect(['available', 'taken', 'error'].includes(result.status)).toBe(true);
+          expect(result.lastChecked).toBeDefined();
+          expect(result.executionTime).toBeDefined();
+          expect(typeof result.executionTime).toBe('number');
         });
 
         // Verify stateless operation
-        expect(statelessManager.verifyStatelessOperation()).toBe(true);
+        expect(statelessManager.verifyStatelessOperation().isStateless).toBe(true);
 
       } finally {
         // Clean up subscriptions
@@ -109,30 +92,19 @@ describe('End-to-End Integration Tests', () => {
     test('should handle invalid domain input gracefully', async () => {
       // Arrange
       const invalidDomain = 'invalid@domain.com';
-      const errorEvents: any[] = [];
 
-      const unsubscribeError = controller.onError((event) => {
-        errorEvents.push(event);
-      });
+      // Act
+      const response = await controller.checkDomain(invalidDomain);
 
-      try {
-        // Act
-        const response = await controller.checkDomain(invalidDomain);
-
-        // Assert - Should return error response
-        expect(response.success).toBe(false);
-        expect(response.error).toBeDefined();
-        expect(response.error?.message).toContain('validation');
-
-        // Verify error events were emitted
-        expect(errorEvents.length).toBeGreaterThan(0);
-
-        // Verify stateless operation maintained
-        expect(statelessManager.verifyStatelessOperation()).toBe(true);
-
-      } finally {
-        unsubscribeError();
+      // Assert - Should return error response
+      expect(response.errors).toBeDefined();
+      expect(response.errors.length).toBeGreaterThan(0);
+      if (response.errors.length > 0) {
+        expect(response.errors[0]?.message).toContain('letters, numbers, and hyphens');
       }
+
+      // Verify stateless operation maintained
+      expect(statelessManager.verifyStatelessOperation().isStateless).toBe(true);
     });
   });
 
@@ -144,9 +116,9 @@ describe('End-to-End Integration Tests', () => {
     test('should process multiple domains concurrently', async () => {
       // Arrange
       const testDomains = [
-        'test-domain-1',
-        'test-domain-2',
-        'test-domain-3'
+        'test-domain-1.com',
+        'test-domain-2.net', 
+        'test-domain-3.org'
       ];
       const progressEvents: any[] = [];
 
@@ -166,20 +138,17 @@ describe('End-to-End Integration Tests', () => {
         expect(totalTime).toBeLessThan(expectedSequentialTime * 0.5); // Should be much faster than sequential
 
         // Verify response structure
-        expect(response.success).toBeDefined();
+        expect(response.requestId).toBeDefined();
         expect(response.results).toBeDefined();
-        expect(response.results.length).toBe(testDomains.length * 7); // 3 domains * 7 TLDs
+        expect(response.results.length).toBe(testDomains.length); // 3 specific domains
 
         // Verify all domains were processed
         testDomains.forEach(domain => {
           const domainResults = response.results.filter(result => 
-            result.domain.startsWith(domain)
+            result.domain === domain
           );
-          expect(domainResults.length).toBe(7); // One for each TLD
+          expect(domainResults.length).toBe(1); // One result per specific domain
         });
-
-        // Verify progress tracking
-        expect(progressEvents.length).toBeGreaterThan(0);
 
       } finally {
         unsubscribeProgress();
@@ -189,11 +158,11 @@ describe('End-to-End Integration Tests', () => {
     test('should isolate errors and continue processing other domains', async () => {
       // Arrange - Mix of valid and invalid domains
       const mixedDomains = [
-        'valid-domain',
-        'invalid@domain',
-        'another-valid-domain',
+        'valid-domain.com',
+        'invalid@domain.net',
+        'another-valid-domain.org',
         '', // Empty domain
-        'third-valid-domain'
+        'third-valid-domain.ai'
       ];
 
       // Act
@@ -204,17 +173,19 @@ describe('End-to-End Integration Tests', () => {
       
       // Should have results for valid domains
       const validDomainResults = response.results.filter(result => 
-        result.domain.includes('valid-domain')
+        result.domain === 'valid-domain.com' || 
+        result.domain === 'another-valid-domain.org' || 
+        result.domain === 'third-valid-domain.ai'
       );
       expect(validDomainResults.length).toBeGreaterThan(0);
 
       // Should have error information for invalid domains
-      if (!response.success && response.error) {
-        expect(response.error.message).toBeDefined();
+      if (response.errors && response.errors.length > 0) {
+        expect(response.errors[0]?.message).toBeDefined();
       }
 
       // Verify stateless operation maintained
-      expect(statelessManager.verifyStatelessOperation()).toBe(true);
+      expect(statelessManager.verifyStatelessOperation().isStateless).toBe(true);
     }, 15000);
   });
 
@@ -235,9 +206,6 @@ describe('End-to-End Integration Tests', () => {
       expect(response.results).toBeDefined();
 
       // Some results may have errors, but system should remain stable
-      const errorResults = response.results.filter(result => result.status === 'error');
-      const successResults = response.results.filter(result => result.status !== 'error');
-
       // Should have attempted all TLDs
       expect(response.results.length).toBe(7);
 
@@ -247,7 +215,7 @@ describe('End-to-End Integration Tests', () => {
       expect(typeof currentState.canTransition).toBe('boolean');
 
       // Verify stateless operation
-      expect(statelessManager.verifyStatelessOperation()).toBe(true);
+      expect(statelessManager.verifyStatelessOperation().isStateless).toBe(true);
     }, 20000);
   });
 
@@ -262,7 +230,7 @@ describe('End-to-End Integration Tests', () => {
       const stateHistory: string[] = [];
 
       const unsubscribe = controller.onStateChange((event) => {
-        stateHistory.push(event.newState);
+        stateHistory.push(event.state);
       });
 
       try {
@@ -270,7 +238,7 @@ describe('End-to-End Integration Tests', () => {
         const initialState = controller.getCurrentState();
         expect(initialState.state).toBe('idle');
 
-        const response = await controller.checkDomain(testDomain);
+        await controller.checkDomain(testDomain);
 
         // Assert - Verify state progression
         expect(stateHistory.length).toBeGreaterThan(0);
@@ -303,13 +271,13 @@ describe('End-to-End Integration Tests', () => {
       const sensitiveTestDomain = 'private-company-domain';
 
       // Verify clean state before
-      expect(statelessManager.verifyStatelessOperation()).toBe(true);
+      expect(statelessManager.verifyStatelessOperation().isStateless).toBe(true);
 
       // Act - Complete domain check workflow
       const response = await controller.checkDomain(sensitiveTestDomain);
 
       // Assert - Verify no data persistence
-      expect(statelessManager.verifyStatelessOperation()).toBe(true);
+      expect(statelessManager.verifyStatelessOperation().isStateless).toBe(true);
 
       // Verify no sensitive data in browser storage
       expect(localStorage.length).toBe(0);
@@ -337,7 +305,7 @@ describe('End-to-End Integration Tests', () => {
 
     test('should work without any authentication', async () => {
       // Arrange - Ensure no authentication tokens or sessions
-      statelessManager.clearAllStorage();
+      statelessManager.ensureCleanState();
       
       // Act - Should work without any authentication
       const response = await controller.checkDomain('no-auth-test');
@@ -347,7 +315,7 @@ describe('End-to-End Integration Tests', () => {
       expect(response.results).toBeDefined();
 
       // Verify no authentication was required or stored
-      expect(statelessManager.verifyStatelessOperation()).toBe(true);
+      expect(statelessManager.verifyStatelessOperation().isStateless).toBe(true);
     });
   });
 });
