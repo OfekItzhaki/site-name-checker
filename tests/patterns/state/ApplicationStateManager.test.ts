@@ -372,6 +372,9 @@ describe('ApplicationStateManager', () => {
       await stateManager.transitionTo(ApplicationStateType.VALIDATING);
       stateManager.handleError('Test error');
 
+      // Add small delay to ensure uptime > 0
+      await new Promise(resolve => setTimeout(resolve, 1));
+
       const stats = stateManager.getStatistics();
       expect(stats.currentState).toBe(ApplicationStateType.VALIDATING);
       expect(stats.totalTransitions).toBe(1);

@@ -175,8 +175,8 @@ describe('DNSLookupService Property Tests', () => {
       fc.assert(
         fc.property(
           fc.record({
-            timeout: fc.integer({ min: 1000, max: 30000 }),
-            retries: fc.integer({ min: 0, max: 10 }),
+            timeoutMs: fc.integer({ min: 1000, max: 30000 }),
+            maxRetries: fc.integer({ min: 0, max: 10 }),
             priority: fc.integer({ min: 1, max: 10 }),
             enabled: fc.boolean()
           }),

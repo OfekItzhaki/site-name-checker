@@ -34,9 +34,13 @@ export class ApplicationStateManager implements IApplicationStateManager {
       errors: [],
       progress: { completed: 0, total: 0 },
       lastActionAt: new Date(),
-      uiCallbacks,
       ...initialContext
     };
+
+    // Only add uiCallbacks if provided
+    if (uiCallbacks) {
+      this.context.uiCallbacks = uiCallbacks;
+    }
 
     // Start in idle state
     this.currentState = new IdleState(this.context);
@@ -237,22 +241,13 @@ export class ApplicationStateManager implements IApplicationStateManager {
   handleError(error: string | Error): void {
     const errorMessage = error instanceof Error ? error.message : error;
     
-    // Add error to context with proper IQueryError structure
-    this.context.errors.push({
-      domain: this.context.currentInput || 'unknown',
-      errorType: 'NETWORK', // Default error type
-      message: errorMessage,
-      timestamp: new Date(),
-      retryable: !this.isCriticalError(errorMessage)
-    });
+    // Let current state handle the error first
+    this.currentState.handleError(error);
     
-    // Notify UI callbacks
+    // Notify UI callbacks (if not already notified by state)
     if (this.context.uiCallbacks?.onError) {
       this.context.uiCallbacks.onError(errorMessage);
     }
-    
-    // Let current state handle the error
-    this.currentState.handleError(error);
     
     // Determine if we should transition to error state
     const currentStateType = this.getCurrentStateType();

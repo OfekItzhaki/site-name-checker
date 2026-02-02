@@ -79,7 +79,9 @@ export class IdleState extends BaseApplicationState {
    * @returns True if transition is allowed
    */
   override canTransitionTo(targetState: ApplicationStateType): boolean {
-    // From idle, can only go to validating or error
-    return targetState === ApplicationStateType.VALIDATING || targetState === ApplicationStateType.ERROR;
+    // From idle, can only go to validating or error states
+    // Direct transition to checking is not allowed - must go through validation
+    return targetState === ApplicationStateType.VALIDATING || 
+           targetState === ApplicationStateType.ERROR;
   }
 }

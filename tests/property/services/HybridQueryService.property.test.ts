@@ -293,8 +293,8 @@ describe('HybridQueryService Property Tests', () => {
       await fc.assert(
         fc.asyncProperty(
           fc.record({
-            timeout: fc.integer({ min: 2000, max: 20000 }),
-            retries: fc.integer({ min: 0, max: 5 }),
+            timeoutMs: fc.integer({ min: 2000, max: 20000 }),
+            maxRetries: fc.integer({ min: 0, max: 5 }),
             priority: fc.integer({ min: 1, max: 10 }),
             enabled: fc.boolean()
           }),
@@ -312,10 +312,10 @@ describe('HybridQueryService Property Tests', () => {
             expect(service.getPriority()).toBe(config.priority);
 
             // Underlying services should receive timeout updates
-            if (config.timeout) {
-              const expectedServiceTimeout = Math.floor(config.timeout / 2);
-              expect(mockDnsService.setConfig).toHaveBeenCalledWith({ timeout: expectedServiceTimeout });
-              expect(mockWhoisService.setConfig).toHaveBeenCalledWith({ timeout: expectedServiceTimeout });
+            if (config.timeoutMs) {
+              const expectedServiceTimeout = Math.floor(config.timeoutMs / 2);
+              expect(mockDnsService.setConfig).toHaveBeenCalledWith({ timeoutMs: expectedServiceTimeout });
+              expect(mockWhoisService.setConfig).toHaveBeenCalledWith({ timeoutMs: expectedServiceTimeout });
             }
           }
         ),

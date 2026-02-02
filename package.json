@@ -12,7 +12,10 @@
     "test:property": "jest --testPathPattern=property",
     "test:coverage": "jest --coverage",
     "lint": "tsc --noEmit",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "start:api": "node dist/api/index.js",
+    "start:frontend": "node server.js",
+    "start": "npm run build && npm run start:api"
   },
   "keywords": [
     "domain",

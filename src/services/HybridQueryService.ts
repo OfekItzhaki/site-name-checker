@@ -40,13 +40,7 @@ export class HybridQueryService implements IQueryStrategy {
     return this.execute(domain);
   }
 
-  /**
-   * Get service configuration
-   * @returns Current service configuration
-   */
-  getConfig(): IStrategyConfig {
-    return { ...this.config };
-  }
+
 
   /**
    * Execute hybrid domain availability check using both DNS and WHOIS concurrently
@@ -246,7 +240,7 @@ export class HybridQueryService implements IQueryStrategy {
    * Get the service type identifier
    * @returns Service type string
    */
-  getServiceType(): string {
+  getServiceType(): 'HYBRID' {
     return 'HYBRID';
   }
 
@@ -264,6 +258,20 @@ export class HybridQueryService implements IQueryStrategy {
    */
   setConfig(config: Partial<IStrategyConfig>): void {
     this.config = { ...this.config, ...config };
+    
+    // Update underlying services when timeout changes
+    if (config.timeoutMs !== undefined) {
+      const serviceTimeout = Math.floor(config.timeoutMs / 2);
+      this.dnsService.setConfig({ timeoutMs: serviceTimeout });
+      this.whoisService.setConfig({ timeoutMs: serviceTimeout });
+      this.concurrentTimeout = serviceTimeout;
+    }
+    
+    // Update other config properties for underlying services
+    if (config.maxRetries !== undefined) {
+      this.dnsService.setConfig({ maxRetries: config.maxRetries });
+      this.whoisService.setConfig({ maxRetries: config.maxRetries });
+    }
   }
 
   /**
@@ -273,7 +281,11 @@ export class HybridQueryService implements IQueryStrategy {
    */
   canHandle(domain: string): boolean {
     // Hybrid can handle any domain that either DNS or WHOIS can handle
-    return this.dnsService.canHandle(domain) || this.whoisService.canHandle(domain);
+    const dnsCanHandle = this.dnsService.canHandle(domain);
+    const whoisCanHandle = this.whoisService.canHandle(domain);
+    
+    // Ensure we always return a boolean
+    return Boolean(dnsCanHandle || whoisCanHandle);
   }
 
   /**

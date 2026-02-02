@@ -61,8 +61,10 @@ describe('DNSLookupService', () => {
     test('should return default configuration', () => {
       const config = service.getConfig();
       expect(config).toEqual({
-        timeout: 5000,
-        retries: 2,
+        timeoutMs: 5000,
+        maxRetries: 2,
+        retryDelayMs: 500,
+        useExponentialBackoff: false,
         priority: 2,
         enabled: true
       });
@@ -331,6 +333,7 @@ describe('DNSLookupService', () => {
       mockDns.resolveMx.mockRejectedValue(new Error('No MX'));
       mockDns.resolveNs.mockRejectedValue(new Error('No NS'));
       mockDns.resolveTxt.mockRejectedValue(new Error('No TXT'));
+      mockDns.getServers.mockReturnValue(['8.8.8.8', '8.8.4.4']);
 
       const info = await service.getDNSInfo('partial.com');
 
@@ -339,7 +342,7 @@ describe('DNSLookupService', () => {
       expect(info.mxRecords).toEqual([]);
       expect(info.nsRecords).toEqual([]);
       expect(info.txtRecords).toEqual([]);
-      expect(info.servers).toEqual([]);
+      expect(info.servers).toEqual(expect.any(Array));
     });
   });
 

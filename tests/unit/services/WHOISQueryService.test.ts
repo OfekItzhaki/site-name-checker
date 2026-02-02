@@ -14,11 +14,11 @@ describe('WHOISQueryService', () => {
   beforeEach(() => {
     service = new WHOISQueryService();
     jest.clearAllMocks();
-    jest.useFakeTimers();
+    // Don't use fake timers for WHOIS tests as they involve real async operations
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    // No timer cleanup needed
   });
 
   describe('Strategy Interface Implementation', () => {
@@ -42,8 +42,10 @@ describe('WHOISQueryService', () => {
     test('should return default configuration', () => {
       const config = service.getConfig();
       expect(config).toEqual({
-        timeout: 10000,
-        retries: 3,
+        timeoutMs: 10000,
+        maxRetries: 3,
+        retryDelayMs: 1000,
+        useExponentialBackoff: true,
         priority: 1,
         enabled: true
       });
@@ -98,28 +100,24 @@ describe('WHOISQueryService', () => {
     });
 
     test('should apply rate limiting between requests', async () => {
-      service.setRateLimitDelay(1000);
+      service.setRateLimitDelay(100); // Use shorter delay for test
       
       mockWhoisLookup.mockImplementation((_domain: string, callback: any) => {
-        setTimeout(() => callback(null, 'Domain available'), 10);
+        setTimeout(() => callback(null, 'No match found'), 10);
       });
 
       const startTime = Date.now();
       
-      // First request
-      const promise1 = service.execute('test1.com');
-      jest.advanceTimersByTime(10);
-      await promise1;
+      // Make two requests
+      await service.execute('test1.com');
+      await service.execute('test2.com');
       
-      // Second request should be delayed
-      const promise2 = service.execute('test2.com');
-      jest.advanceTimersByTime(1000); // Rate limit delay
-      jest.advanceTimersByTime(10); // WHOIS response time
-      await promise2;
-
-      const totalTime = Date.now() - startTime;
-      expect(totalTime).toBeGreaterThanOrEqual(1000);
-    });
+      const endTime = Date.now();
+      const totalTime = endTime - startTime;
+      
+      // Should take at least the rate limit delay
+      expect(totalTime).toBeGreaterThanOrEqual(100);
+    }, 15000);
   });
 
   describe('WHOIS Lookup Execution', () => {
@@ -259,7 +257,7 @@ describe('WHOISQueryService', () => {
     });
 
     test('should extract expiration date information', async () => {
-      const whoisResponse = 'Registry Expiry Date: 2025-12-31T23:59:59Z';
+      const whoisResponse = 'Registry Expiry Date: 2025-06-15T12:00:00Z';
 
       mockWhoisLookup.mockImplementation((_domain: string, callback: any) => {
         callback(null, whoisResponse);

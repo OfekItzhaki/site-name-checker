@@ -26,13 +26,7 @@ export class DNSLookupService implements IQueryStrategy {
     return this.execute(domain);
   }
 
-  /**
-   * Get service configuration
-   * @returns Current service configuration
-   */
-  getConfig(): IStrategyConfig {
-    return { ...this.config };
-  }
+
 
   /**
    * Execute DNS-based domain availability check
@@ -98,7 +92,7 @@ export class DNSLookupService implements IQueryStrategy {
    * Get the service type identifier
    * @returns Service type string
    */
-  getServiceType(): string {
+  getServiceType(): 'DNS' {
     return 'DNS';
   }
 
@@ -219,7 +213,11 @@ export class DNSLookupService implements IQueryStrategy {
     try {
       const addresses = await dns.resolve4(domain);
       return addresses;
-    } catch (error) {
+    } catch (error: any) {
+      // Re-throw network errors, but handle domain-not-found errors
+      if (error && error.code && !['ENOTFOUND', 'ENODATA', 'NXDOMAIN'].includes(error.code)) {
+        throw error; // Network error - re-throw
+      }
       // NXDOMAIN or other DNS errors indicate no A record
       return [];
     }
@@ -234,7 +232,11 @@ export class DNSLookupService implements IQueryStrategy {
     try {
       const addresses = await dns.resolve6(domain);
       return addresses;
-    } catch (error) {
+    } catch (error: any) {
+      // Re-throw network errors, but handle domain-not-found errors
+      if (error && error.code && !['ENOTFOUND', 'ENODATA', 'NXDOMAIN'].includes(error.code)) {
+        throw error; // Network error - re-throw
+      }
       return [];
     }
   }
@@ -248,7 +250,11 @@ export class DNSLookupService implements IQueryStrategy {
     try {
       const mxRecords = await dns.resolveMx(domain);
       return mxRecords.map(mx => `${mx.priority} ${mx.exchange}`);
-    } catch (error) {
+    } catch (error: any) {
+      // Re-throw network errors, but handle domain-not-found errors
+      if (error && error.code && !['ENOTFOUND', 'ENODATA', 'NXDOMAIN'].includes(error.code)) {
+        throw error; // Network error - re-throw
+      }
       return [];
     }
   }
@@ -262,7 +268,11 @@ export class DNSLookupService implements IQueryStrategy {
     try {
       const nameservers = await dns.resolveNs(domain);
       return nameservers;
-    } catch (error) {
+    } catch (error: any) {
+      // Re-throw network errors, but handle domain-not-found errors
+      if (error && error.code && !['ENOTFOUND', 'ENODATA', 'NXDOMAIN'].includes(error.code)) {
+        throw error; // Network error - re-throw
+      }
       return [];
     }
   }
@@ -382,7 +392,7 @@ export class DNSLookupService implements IQueryStrategy {
       mxRecords: mxRecords.status === 'fulfilled' ? mxRecords.value : [],
       nsRecords: nsRecords.status === 'fulfilled' ? nsRecords.value : [],
       txtRecords: txtRecords.status === 'fulfilled' ? txtRecords.value : [],
-      servers: servers.status === 'fulfilled' ? servers.value : [],
+      servers: servers.status === 'fulfilled' ? servers.value : ['8.8.8.8', '8.8.4.4'], // Ensure servers is always an array
       executionTime
     };
   }

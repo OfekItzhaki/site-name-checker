@@ -40,10 +40,10 @@ export class ServiceFactory implements IServiceFactory {
     
     // Always configure service with final config (defaults + overrides)
     service.setConfig({
-      timeoutMs: finalConfig.timeoutMs || 3000,
-      maxRetries: finalConfig.maxRetries || 2,
-      retryDelayMs: finalConfig.retryDelayMs || 500,
-      useExponentialBackoff: finalConfig.useExponentialBackoff || false,
+      timeoutMs: finalConfig.timeoutMs !== undefined ? finalConfig.timeoutMs : 3000,
+      maxRetries: finalConfig.maxRetries !== undefined ? finalConfig.maxRetries : 2,
+      retryDelayMs: finalConfig.retryDelayMs !== undefined ? finalConfig.retryDelayMs : 500,
+      useExponentialBackoff: finalConfig.useExponentialBackoff !== undefined ? finalConfig.useExponentialBackoff : false,
       priority: 1,
       enabled: true
     });
@@ -72,10 +72,10 @@ export class ServiceFactory implements IServiceFactory {
     
     // Always configure service with final config (defaults + overrides)
     service.setConfig({
-      timeoutMs: finalConfig.timeoutMs || 3000,
-      maxRetries: finalConfig.maxRetries || 2,
-      retryDelayMs: finalConfig.retryDelayMs || 500,
-      useExponentialBackoff: finalConfig.useExponentialBackoff || false,
+      timeoutMs: finalConfig.timeoutMs !== undefined ? finalConfig.timeoutMs : 3000,
+      maxRetries: finalConfig.maxRetries !== undefined ? finalConfig.maxRetries : 2,
+      retryDelayMs: finalConfig.retryDelayMs !== undefined ? finalConfig.retryDelayMs : 500,
+      useExponentialBackoff: finalConfig.useExponentialBackoff !== undefined ? finalConfig.useExponentialBackoff : false,
       priority: 2,
       enabled: true
     });
@@ -104,10 +104,10 @@ export class ServiceFactory implements IServiceFactory {
     
     // Always configure service with final config (defaults + overrides)
     service.setConfig({
-      timeoutMs: finalConfig.timeoutMs || 3000,
-      maxRetries: finalConfig.maxRetries || 2,
-      retryDelayMs: finalConfig.retryDelayMs || 500,
-      useExponentialBackoff: finalConfig.useExponentialBackoff || false,
+      timeoutMs: finalConfig.timeoutMs !== undefined ? finalConfig.timeoutMs : 3000,
+      maxRetries: finalConfig.maxRetries !== undefined ? finalConfig.maxRetries : 2,
+      retryDelayMs: finalConfig.retryDelayMs !== undefined ? finalConfig.retryDelayMs : 500,
+      useExponentialBackoff: finalConfig.useExponentialBackoff !== undefined ? finalConfig.useExponentialBackoff : false,
       priority: 3,
       enabled: true
     });

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain Availability Checker - Demo</title>
+    <meta name="description" content="Check domain availability across multiple TLDs quickly and privately">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        <header class="header">
+            <h1 class="title">Domain Availability Checker</h1>
+            <p class="subtitle">Find available domain names across multiple extensions</p>
+        </header>
+
+        <main class="main-content">
+            <section class="search-section">
+                <form id="domain-form" class="domain-form">
+                    <div class="input-group">
+                        <label for="domain-input" class="input-label">Enter domain name:</label>
+                        <input 
+                            type="text" 
+                            id="domain-input" 
+                            class="domain-input" 
+                            placeholder="e.g., myawesomesite"
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                        <button type="submit" id="check-button" class="check-button">
+                            Check Availability
+                        </button>
+                    </div>
+                    <div id="validation-error" class="validation-error hidden"></div>
+                </form>
+            </section>
+
+            <section id="results-section" class="results-section hidden">
+                <h2 class="results-title">Domain Availability Results</h2>
+                <div id="progress-indicator" class="progress-indicator hidden">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <span id="progress-text" class="progress-text">Checking domains...</span>
+                </div>
+                <div id="results-grid" class="results-grid"></div>
+                <div id="error-message" class="error-message hidden"></div>
+                <button id="retry-button" class="retry-button hidden">Retry Failed Checks</button>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p class="footer-text">
+                Privacy-focused • No data stored • Real-time checking • Demo Mode
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Simple browser-compatible demo version
+        class DomainCheckerDemo {
+            constructor() {
+                this.initializeElements();
+                this.setupEventListeners();
+            }
+
+            initializeElements() {
+                this.domainForm = document.getElementById('domain-form');
+                this.domainInput = document.getElementById('domain-input');
+                this.checkButton = document.getElementById('check-button');
+                this.validationError = document.getElementById('validation-error');
+                this.resultsSection = document.getElementById('results-section');
+                this.progressIndicator = document.getElementById('progress-indicator');
+                this.progressFill = document.getElementById('progress-fill');
+                this.progressText = document.getElementById('progress-text');
+                this.resultsGrid = document.getElementById('results-grid');
+                this.errorMessage = document.getElementById('error-message');
+                this.retryButton = document.getElementById('retry-button');
+            }
+
+            setupEventListeners() {
+                this.domainForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleSubmit();
+                });
+
+                this.retryButton.addEventListener('click', () => {
+                    this.handleRetry();
+                });
+            }
+
+            async handleSubmit() {
+                const domain = this.domainInput.value.trim();
+                
+                if (!domain) {
+                    this.showValidationError('Please enter a domain name');
+                    return;
+                }
+
+                if (!this.isValidDomain(domain)) {
+                    this.showValidationError('Please enter a valid domain name (letters, numbers, and hyphens only)');
+                    return;
+                }
+
+                this.hideValidationError();
+                this.showProgress();
+                await this.checkDomainAvailability(domain);
+            }
+
+            isValidDomain(domain) {
+                const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+                return domainRegex.test(domain) && domain.length <= 63;
+            }
+
+            async checkDomainAvailability(baseDomain) {
+                const tlds = ['.com', '.net', '.org', '.ai', '.dev', '.io', '.co'];
+                const results = [];
+
+                for (let i = 0; i < tlds.length; i++) {
+                    const tld = tlds[i];
+                    const fullDomain = baseDomain + tld;
+                    
+                    // Update progress
+                    const progress = ((i + 1) / tlds.length) * 100;
+                    this.updateProgress(progress, `Checking ${fullDomain}...`);
+                    
+                    // Simulate checking delay
+                    await this.delay(500 + Math.random() * 1000);
+                    
+                    // Mock results - in real implementation, this would call actual APIs
+                    const isAvailable = Math.random() > 0.6; // 40% chance of being available
+                    const status = isAvailable ? 'available' : 'taken';
+                    
+                    results.push({
+                        domain: fullDomain,
+                        baseDomain: baseDomain,
+                        tld: tld,
+                        status: status,
+                        checkMethod: Math.random() > 0.5 ? 'DNS' : 'WHOIS',
+                        executionTime: Math.floor(Math.random() * 2000) + 500,
+                        timestamp: new Date()
+                    });
+                }
+
+                this.hideProgress();
+                this.displayResults(results);
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            showProgress() {
+                this.resultsSection.classList.remove('hidden');
+                this.progressIndicator.classList.remove('hidden');
+                this.resultsGrid.innerHTML = '';
+                this.errorMessage.classList.add('hidden');
+                this.retryButton.classList.add('hidden');
+            }
+
+            updateProgress(percentage, text) {
+                this.progressFill.style.width = percentage + '%';
+                this.progressText.textContent = text;
+            }
+
+            hideProgress() {
+                this.progressIndicator.classList.add('hidden');
+            }
+
+            displayResults(results) {
+                this.resultsGrid.innerHTML = '';
+                
+                results.forEach(result => {
+                    const resultCard = document.createElement('div');
+                    resultCard.className = `result-card ${result.status}`;
+                    
+                    const statusIcon = result.status === 'available' ? '✅' : '❌';
+                    const statusText = result.status === 'available' ? 'Available' : 'Taken';
+                    const statusClass = result.status === 'available' ? 'available' : 'taken';
+                    
+                    resultCard.innerHTML = `
+                        <div class="domain-name">${result.domain}</div>
+                        <div class="status ${statusClass}">
+                            <span class="status-icon">${statusIcon}</span>
+                            <span class="status-text">${statusText}</span>
+                        </div>
+                        <div class="details">
+                            <span class="method">${result.checkMethod}</span>
+                            <span class="time">${result.executionTime}ms</span>
+                        </div>
+                    `;
+                    
+                    this.resultsGrid.appendChild(resultCard);
+                });
+            }
+
+            showValidationError(message) {
+                this.validationError.textContent = message;
+                this.validationError.classList.remove('hidden');
+            }
+
+            hideValidationError() {
+                this.validationError.classList.add('hidden');
+            }
+
+            handleRetry() {
+                const domain = this.domainInput.value.trim();
+                if (domain) {
+                    this.handleSubmit();
+                }
+            }
+        }
+
+        // Initialize the demo when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            new DomainCheckerDemo();
+            console.log('Domain Availability Checker Demo initialized successfully');
+        });
+    </script>
+</body>
+</html>

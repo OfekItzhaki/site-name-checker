@@ -494,6 +494,33 @@ export class DomainController {
   }
 
   /**
+   * Check domain availability (API-compatible method)
+   * @param request - Query request object
+   * @returns Promise resolving to query response
+   */
+  async checkDomainAvailability(request: IQueryRequest): Promise<IQueryResponse> {
+    // If TLDs are provided, check each combination
+    if (request.tlds && request.tlds.length > 0) {
+      const domainNames = request.tlds.map(tld => request.baseDomain + tld);
+      return this.checkDomains(domainNames);
+    } else {
+      // No specific TLDs, check with default TLDs
+      return this.checkDomain(request.baseDomain);
+    }
+  }
+
+  /**
+   * Validate domain input (API-compatible method)
+   * @param domain - Domain name to validate
+   * @returns Boolean indicating if domain is valid
+   */
+  validateDomainInput(domain: string): boolean {
+    const baseDomain = this.extractBaseDomain(domain);
+    const validationResult = this.validator.validateDomainName(baseDomain);
+    return validationResult.isValid;
+  }
+
+  /**
    * Dispose of resources and clean up
    */
   dispose(): void {

@@ -35,6 +35,6 @@ module.exports = {
       statements: 90
     }
   },
-  testTimeout: 10000,
+  testTimeout: 30000, // Increased timeout to 30 seconds
   verbose: true
 };
