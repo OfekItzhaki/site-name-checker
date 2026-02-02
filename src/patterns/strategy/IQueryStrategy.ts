@@ -66,11 +66,13 @@ export interface IQueryStrategy {
  */
 export interface IStrategyConfig {
   /** Timeout in milliseconds for this strategy */
-  timeout: number;
-  /** Number of retries for this strategy */
-  retries: number;
-  /** Fallback strategy to use if this one fails */
-  fallbackStrategy?: QueryStrategyType;
+  timeoutMs: number;
+  /** Maximum number of retries for this strategy */
+  maxRetries: number;
+  /** Delay between retries in milliseconds */
+  retryDelayMs: number;
+  /** Whether to use exponential backoff for retries */
+  useExponentialBackoff: boolean;
   /** Priority level for strategy selection */
   priority: number;
   /** Whether this strategy is enabled */

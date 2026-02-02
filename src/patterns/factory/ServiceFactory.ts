@@ -38,16 +38,15 @@ export class ServiceFactory implements IServiceFactory {
     
     const service = new DNSLookupService();
     
-    // Configure service after creation with strategy config
-    if (config) {
-      const strategyConfig: any = {};
-      if (config.timeoutMs !== undefined) strategyConfig.timeout = config.timeoutMs;
-      if (config.maxRetries !== undefined) strategyConfig.retries = config.maxRetries;
-      strategyConfig.priority = 1;
-      strategyConfig.enabled = true;
-      
-      service.setConfig(strategyConfig);
-    }
+    // Always configure service with final config (defaults + overrides)
+    service.setConfig({
+      timeoutMs: finalConfig.timeoutMs || 3000,
+      maxRetries: finalConfig.maxRetries || 2,
+      retryDelayMs: finalConfig.retryDelayMs || 500,
+      useExponentialBackoff: finalConfig.useExponentialBackoff || false,
+      priority: 1,
+      enabled: true
+    });
     
     if (cacheKey) {
       this.serviceInstances.set(cacheKey, service as any);
@@ -71,16 +70,15 @@ export class ServiceFactory implements IServiceFactory {
     
     const service = new WHOISQueryService();
     
-    // Configure service after creation with strategy config
-    if (config) {
-      const strategyConfig: any = {};
-      if (config.timeoutMs !== undefined) strategyConfig.timeout = config.timeoutMs;
-      if (config.maxRetries !== undefined) strategyConfig.retries = config.maxRetries;
-      strategyConfig.priority = 2;
-      strategyConfig.enabled = true;
-      
-      service.setConfig(strategyConfig);
-    }
+    // Always configure service with final config (defaults + overrides)
+    service.setConfig({
+      timeoutMs: finalConfig.timeoutMs || 3000,
+      maxRetries: finalConfig.maxRetries || 2,
+      retryDelayMs: finalConfig.retryDelayMs || 500,
+      useExponentialBackoff: finalConfig.useExponentialBackoff || false,
+      priority: 2,
+      enabled: true
+    });
     
     if (cacheKey) {
       this.serviceInstances.set(cacheKey, service as any);
@@ -104,16 +102,15 @@ export class ServiceFactory implements IServiceFactory {
     
     const service = new HybridQueryService();
     
-    // Configure service after creation with strategy config
-    if (config) {
-      const strategyConfig: any = {};
-      if (config.timeoutMs !== undefined) strategyConfig.timeout = config.timeoutMs;
-      if (config.maxRetries !== undefined) strategyConfig.retries = config.maxRetries;
-      strategyConfig.priority = 3;
-      strategyConfig.enabled = true;
-      
-      service.setConfig(strategyConfig);
-    }
+    // Always configure service with final config (defaults + overrides)
+    service.setConfig({
+      timeoutMs: finalConfig.timeoutMs || 3000,
+      maxRetries: finalConfig.maxRetries || 2,
+      retryDelayMs: finalConfig.retryDelayMs || 500,
+      useExponentialBackoff: finalConfig.useExponentialBackoff || false,
+      priority: 3,
+      enabled: true
+    });
     
     if (cacheKey) {
       this.serviceInstances.set(cacheKey, service as any);

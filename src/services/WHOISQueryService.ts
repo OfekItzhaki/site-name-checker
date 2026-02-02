@@ -9,8 +9,10 @@ import type { IQueryStrategy, IStrategyConfig } from '../patterns/strategy/IQuer
  */
 export class WHOISQueryService implements IQueryStrategy {
   private config: IStrategyConfig = {
-    timeout: 10000, // 10 second timeout for WHOIS queries
-    retries: 3,
+    timeoutMs: 10000, // 10 second timeout for WHOIS queries
+    maxRetries: 3,
+    retryDelayMs: 1000,
+    useExponentialBackoff: true,
     priority: 1, // Lower priority than DNS for accuracy over speed
     enabled: true
   };
@@ -142,30 +144,6 @@ export class WHOISQueryService implements IQueryStrategy {
   }
 
   /**
-   * Get strategy-specific configuration
-   * @returns Strategy configuration
-   */
-  getConfig(): IStrategyConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * Set strategy configuration
-   * @param config - New configuration to apply
-   */
-  setConfig(config: Partial<IStrategyConfig>): void {
-    this.config = { ...this.config, ...config };
-  }
-
-  /**
-   * Set rate limiting delay between requests
-   * @param delay - Delay in milliseconds
-   */
-  setRateLimitDelay(delay: number): void {
-    this.rateLimitDelay = Math.max(0, delay);
-  }
-
-  /**
    * Get current rate limiting delay
    * @returns Current delay in milliseconds
    */
@@ -196,14 +174,14 @@ export class WHOISQueryService implements IQueryStrategy {
   private async performWHOISLookup(domain: string): Promise<string> {
     let lastError: Error | null = null;
     
-    for (let attempt = 0; attempt <= this.config.retries; attempt++) {
+    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       try {
         return await this.whoisLookupWithTimeout(domain);
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('WHOIS lookup failed');
         
         // If this isn't the last attempt, wait before retrying
-        if (attempt < this.config.retries) {
+        if (attempt < this.config.maxRetries) {
           const backoffDelay = Math.min(1000 * Math.pow(2, attempt), 5000); // Exponential backoff, max 5s
           await new Promise(resolve => setTimeout(resolve, backoffDelay));
         }
@@ -221,8 +199,8 @@ export class WHOISQueryService implements IQueryStrategy {
   private async whoisLookupWithTimeout(domain: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
-        reject(new Error(`WHOIS lookup timeout after ${this.config.timeout}ms`));
-      }, this.config.timeout);
+        reject(new Error(`WHOIS lookup timeout after ${this.config.timeoutMs}ms`));
+      }, this.config.timeoutMs);
 
       lookup(domain, (error: Error | null, data: string | any) => {
         clearTimeout(timeoutId);

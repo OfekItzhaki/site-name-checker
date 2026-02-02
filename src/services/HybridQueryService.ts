@@ -10,8 +10,10 @@ import { WHOISQueryService } from './WHOISQueryService';
  */
 export class HybridQueryService implements IQueryStrategy {
   private config: IStrategyConfig = {
-    timeout: 15000, // 15 second timeout for hybrid queries
-    retries: 2,
+    timeoutMs: 15000, // 15 second timeout for hybrid queries
+    maxRetries: 2,
+    retryDelayMs: 1000,
+    useExponentialBackoff: false,
     priority: 3, // Highest priority for hybrid approach
     enabled: true
   };
@@ -25,8 +27,8 @@ export class HybridQueryService implements IQueryStrategy {
     this.whoisService = new WHOISQueryService();
     
     // Configure services for hybrid use
-    this.dnsService.setConfig({ timeout: this.concurrentTimeout, retries: 1 });
-    this.whoisService.setConfig({ timeout: this.concurrentTimeout, retries: 1 });
+    this.dnsService.setConfig({ timeoutMs: this.concurrentTimeout, maxRetries: 1 });
+    this.whoisService.setConfig({ timeoutMs: this.concurrentTimeout, maxRetries: 1 });
   }
 
   /**
@@ -94,7 +96,7 @@ export class HybridQueryService implements IQueryStrategy {
 
     // Execute concurrently with timeout
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Concurrent queries timeout')), this.config.timeout);
+      setTimeout(() => reject(new Error('Concurrent queries timeout')), this.config.timeoutMs);
     });
 
     try {
@@ -274,37 +276,13 @@ export class HybridQueryService implements IQueryStrategy {
   }
 
   /**
-   * Get strategy-specific configuration
-   * @returns Strategy configuration
-   */
-  getConfig(): IStrategyConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * Set strategy configuration
-   * @param config - New configuration to apply
-   */
-  setConfig(config: Partial<IStrategyConfig>): void {
-    this.config = { ...this.config, ...config };
-    
-    // Update underlying service configurations
-    if (config.timeout) {
-      const serviceTimeout = Math.floor(config.timeout / 2); // Split timeout between services
-      this.dnsService.setConfig({ timeout: serviceTimeout });
-      this.whoisService.setConfig({ timeout: serviceTimeout });
-      this.concurrentTimeout = serviceTimeout;
-    }
-  }
-
-  /**
    * Set concurrent operation timeout
    * @param timeout - Timeout in milliseconds for individual operations
    */
   setConcurrentTimeout(timeout: number): void {
     this.concurrentTimeout = Math.max(1000, timeout);
-    this.dnsService.setConfig({ timeout: this.concurrentTimeout });
-    this.whoisService.setConfig({ timeout: this.concurrentTimeout });
+    this.dnsService.setConfig({ timeoutMs: this.concurrentTimeout });
+    this.whoisService.setConfig({ timeoutMs: this.concurrentTimeout });
   }
 
   /**

@@ -9,8 +9,10 @@ import type { IQueryStrategy, IStrategyConfig } from '../patterns/strategy/IQuer
  */
 export class DNSLookupService implements IQueryStrategy {
   private config: IStrategyConfig = {
-    timeout: 5000, // 5 second timeout for DNS queries
-    retries: 2,
+    timeoutMs: 5000, // 5 second timeout for DNS queries
+    maxRetries: 2,
+    retryDelayMs: 500,
+    useExponentialBackoff: false,
     priority: 2, // Higher priority than WHOIS for speed
     enabled: true
   };
@@ -126,22 +128,6 @@ export class DNSLookupService implements IQueryStrategy {
   }
 
   /**
-   * Get strategy-specific configuration
-   * @returns Strategy configuration
-   */
-  getConfig(): IStrategyConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * Set strategy configuration
-   * @param config - New configuration to apply
-   */
-  setConfig(config: Partial<IStrategyConfig>): void {
-    this.config = { ...this.config, ...config };
-  }
-
-  /**
    * Perform DNS lookup with timeout handling
    * @param domain - Domain to lookup
    * @returns DNS lookup result
@@ -152,8 +138,8 @@ export class DNSLookupService implements IQueryStrategy {
   }> {
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
-        reject(new Error(`DNS lookup timeout after ${this.config.timeout}ms`));
-      }, this.config.timeout);
+        reject(new Error(`DNS lookup timeout after ${this.config.timeoutMs}ms`));
+      }, this.config.timeoutMs);
 
       // Try multiple DNS record types to determine availability
       Promise.allSettled([
