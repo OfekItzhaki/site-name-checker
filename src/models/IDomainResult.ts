@@ -22,4 +22,6 @@ export interface IDomainResult {
   retryCount?: number;
   /** Execution time for this check in milliseconds */
   executionTime?: number;
+  /** DNS records found during lookup (for DNS method) */
+  dnsRecords?: string[];
 }

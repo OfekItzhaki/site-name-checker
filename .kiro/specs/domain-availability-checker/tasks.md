@@ -64,22 +64,22 @@ This implementation plan breaks down the domain availability checker into discre
     - Add Command pattern integration for query execution
     - _Requirements: 2.1, 2.2, 5.2_
   
-  - [~] 3.2 Write property test for TLD processing
+  - [x] 3.2 Write property test for TLD processing
     - **Property 2: Comprehensive TLD Processing**
     - **Validates: Requirements 2.1, 2.2, 5.2**
   
-  - [~] 3.3 Write property test for result format consistency
+  - [x] 3.3 Write property test for result format consistency
     - **Property 4: Result Format Consistency**
     - **Validates: Requirements 2.4, 5.4**
 
 - [ ] 4. Implement DNS lookup service
-  - [~] 4.1 Create DNS Lookup Service using Node.js dns module
+  - [x] 4.1 Create DNS Lookup Service using Node.js dns module
     - Implement DNS resolution checking with dns.resolve()
     - Add timeout handling for DNS queries
     - Create error handling for DNS failures
     - _Requirements: 4.1, 4.2_
   
-  - [~] 4.2 Write unit tests for DNS service
+  - [x] 4.2 Write unit tests for DNS service
     - Test DNS resolution success and failure cases
     - Test timeout handling
     - _Requirements: 4.1, 4.2_
